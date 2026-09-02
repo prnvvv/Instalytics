@@ -12,13 +12,17 @@ Responsibilities:
 - Locate the `followers_and_following/` folder inside the extracted data,
   regardless of exact nesting (e.g. `connections/followers_and_following/`
   vs the zip root already being `followers_and_following/`).
-- Delegate actual JSON parsing to `services/parser.py`.
-- Return a `dataset_id` (session identifier) that subsequent
-  `routes/social.py` endpoints use to reference this dataset.
-"""
+- Parse the dataset ONCE and cache the normalized result (see
+  services/parser.py), so a successful upload means the dataset is already
+  parsed and ready — Social Graph endpoints reuse the cached data and never
+  re-parse.
 
+The expensive parse runs inside a threadpool so it does not block the event
+loop, and the one-time cost happens at upload rather than on later reads.
+"""
 from __future__ import annotations
 
+import logging
 import shutil
 import uuid
 import zipfile
@@ -26,14 +30,16 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 
-# Expected service-layer imports (see explanation at the bottom of this
-# response for the exact contract `services/parser.py` must satisfy).
 from services.parser import (
     ParsingError,
+    discard_dataset,
     find_followers_and_following_dir,
-    parse_connections_dataset,
+    register_dataset,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
 
@@ -63,27 +69,30 @@ def _validate_upload_file(file: UploadFile) -> None:
         )
 
 
-def _safe_extract_zip(zip_path: Path, extract_to: Path) -> None:
+def _extract_and_locate(zip_path: Path, extracted_dir: Path) -> Optional[Path]:
     """
-    Extract a ZIP archive while guarding against path traversal
-    ("zip slip") and clearly invalid archives.
+    Extract a ZIP (guarding against path traversal / "zip slip") and locate
+    the followers_and_following directory, regardless of nesting.
+    Runs in a threadpool so it does not block the event loop.
     """
     try:
         with zipfile.ZipFile(zip_path, "r") as zf:
             for member in zf.infolist():
-                member_path = extract_to / member.filename
+                member_path = extracted_dir / member.filename
                 resolved = member_path.resolve()
-                if not str(resolved).startswith(str(extract_to.resolve())):
+                if not str(resolved).startswith(str(extracted_dir.resolve())):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Invalid archive contents.",
                     )
-            zf.extractall(extract_to)
+            zf.extractall(extracted_dir)
     except zipfile.BadZipFile as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file is not a valid ZIP archive.",
         ) from exc
+
+    return find_followers_and_following_dir(extracted_dir)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -91,9 +100,11 @@ async def upload_connections_dataset(file: UploadFile = File(...)) -> dict:
     """
     Upload the Instagram `connections` export (as a .zip archive).
 
-    Returns a `dataset_id` that must be used to reference this dataset
-    on all subsequent Social Graph endpoints.
+    Returns a `dataset_id` that must be used to reference this dataset on
+    all subsequent Social Graph endpoints. The dataset is parsed once here
+    and cached, so Social endpoints reuse the parsed data (no re-parse).
     """
+    logger.info("Upload received")
     _validate_upload_file(file)
 
     dataset_id = uuid.uuid4().hex
@@ -135,10 +146,11 @@ async def upload_connections_dataset(file: UploadFile = File(...)) -> dict:
 
     extracted_dir = dataset_dir / "extracted"
     extracted_dir.mkdir(parents=True, exist_ok=True)
-    _safe_extract_zip(zip_path, extracted_dir)
 
-    # Locate followers_and_following/ regardless of nesting depth.
-    follow_dir: Optional[Path] = find_followers_and_following_dir(extracted_dir)
+    # Blocking extraction + folder scan run off the event loop.
+    follow_dir = await run_in_threadpool(_extract_and_locate, zip_path, extracted_dir)
+    logger.info("ZIP extracted, followers_and_following located")
+
     if follow_dir is None:
         shutil.rmtree(dataset_dir, ignore_errors=True)
         raise HTTPException(
@@ -150,8 +162,10 @@ async def upload_connections_dataset(file: UploadFile = File(...)) -> dict:
             ),
         )
 
+    # Parse once and cache in memory, keyed by dataset_id. Runs off the event
+    # loop. Social Graph endpoints later reuse this cached data (no re-parse).
     try:
-        parse_connections_dataset(dataset_id=dataset_id, follow_dir=follow_dir)
+        await run_in_threadpool(register_dataset, dataset_id, follow_dir)
     except ParsingError as exc:
         shutil.rmtree(dataset_dir, ignore_errors=True)
         raise HTTPException(
@@ -164,10 +178,11 @@ async def upload_connections_dataset(file: UploadFile = File(...)) -> dict:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unexpected error while processing the dataset.",
         ) from exc
+    logger.info("Dataset ready: %s", dataset_id)
 
     return {
         "dataset_id": dataset_id,
-        "message": "Dataset uploaded and parsed successfully.",
+        "message": "Dataset uploaded successfully.",
     }
 
 
@@ -181,3 +196,7 @@ async def delete_dataset(dataset_id: str) -> None:
             detail="Dataset not found.",
         )
     shutil.rmtree(dataset_dir, ignore_errors=True)
+    # Drop the dataset from the in-memory parsed-data store so we do not
+    # retain stale data or leak memory across many upload/delete cycles.
+    discard_dataset(dataset_id)
+    logger.info("Dataset deleted: %s", dataset_id)

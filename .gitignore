@@ -1,0 +1,130 @@
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+eggs/
+.eggs/
+wheels/
+*.sdist.tar.gz
+
+# Python venv / virtualenv
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Cython / compiled
+*.so
+
+# ============================================================
+# Environment & secrets
+# ============================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.crt
+*.cer
+
+# ============================================================
+# Logs
+# ============================================================
+logs/
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================================
+# IDE / editors
+# ============================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================================
+# OS / misc
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+*.tmp
+*.temp
+
+# ============================================================
+# Testing / coverage / quality
+# ============================================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.pytype/
+.ruff_cache/
+.pyright/
+.hypothesis/
+coverage.xml
+*.cover
+
+# ============================================================
+# Runtime data (uploaded datasets, parsed output, databases)
+# ============================================================
+# Keep the uploads directory but never commit any uploaded/parsed
+# Instagram exports (they contain personal data).
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+## Database & parsed-data artifacts (regardless of location)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite3-journal
+*.parquet
+*.csv
+*.jsonl
+data/
+.persist/
+
+## ZIP / archive files (user uploads end up stored/extracted here)
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+
+# ============================================================
+# Dependencies / package managers
+# ============================================================
+.pip/
+.poetry/
+# npm / frontend (if a client is added later)
+node_modules/
+*.tsbuildinfo
+
+# ============================================================
+# Editor cache / backups
+# ============================================================
+.Trash-*
+.chrome-headless-shell-*/
+.pydevproject
