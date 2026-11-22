@@ -45,9 +45,11 @@ contacts Instagram: INYX never looks accounts up.
 `lib/instagram` and `lib/analytics` are a TypeScript port of the backend's parser, completeness diagnostics and
 relationship analytics. `docs/parser/parity-cases.json` is a shared set of hand-written synthetic cases that the
 backend (pytest) and the frontend (vitest) both run, so a rule changed on one side fails a test on the other
-until it is ported. The import preview shows the same diagnostics the backend produces (files found, per-list
-totals, missing parts, rejected records, a possible date-range limit) and asks for an acknowledgement before
-analysing an export that looks incomplete; saved snapshots keep their warning.
+until it is ported. Importing opens the overview straight away. The same diagnostics the backend produces (files
+found, per-list totals, missing parts, rejected records, a possible date-range limit) are kept: an export that
+looks incomplete shows a one-line warning on the overview and lists what may be missing in a dialog, the full
+file-by-file report is under **Import details**, and saved snapshots keep their warning. An export without both a
+followers and a following list is not analysed, and the import page says why.
 
 ## Layers
 
@@ -60,7 +62,9 @@ src/
     csv.ts              CSV writer with spreadsheet-formula neutralisation
     api/client.ts       typed backend client (health only)
   data/                 DataProvider and useAppData: the current session, snapshots, preferences
-  components/dots/      dot-matrix numerals and pixel charts (DotText, DotBar, DotGrid, DotColumns)
+  components/dots/      dot-matrix numerals and pixel charts (DotText, DotBar, DotGrid, DotColumns, PixelStrip)
+  components/ui/        Dialog (focus-trapped modal)
+  hooks/                useFit: the fixed-layout query and element size
   features/             upload, dashboard, lists, history, settings
   app/                  shell, routes, shared page pieces
   styles/app.css        theme, continuing the landing page (ix- classes)
@@ -69,6 +73,28 @@ src/
 `lib/instagram` is a TypeScript port of the backend parser and archive validator (same rules, limits and
 definitions; see `docs/parser/instagram-export-format.md` and `docs/analytics/definitions.md`), so the two stay
 interchangeable. `lib/analytics/relationships.ts` implements the same set definitions as the backend.
+
+## Layout: one screen per page
+
+On screens at least 1000px wide and 600px tall (`FIT_QUERY` in `hooks/useFit.ts`, mirrored in
+`styles/app.css`) the app is a fixed shell and the page itself never scrolls. Each page is a header row plus a
+body that is split into tiles, and every tile manages its own overflow:
+
+- **Lists** are card grids. `features/lists/AccountBrowser.tsx` measures its grid and works out how many cards
+  fit, so a page always fills its tile exactly and the rest is reached with the pager. Selecting an account opens
+  its details in a dialog.
+- **Longer content** is not squeezed in: it opens in a `Dialog` behind a "Read more" or "Details" button
+  (insights, import details, the Instagram check, what may be missing).
+- **Short windows** (up to 779px tall, a typical laptop) switch on a compact mode: tighter spacing, and secondary
+  text marked `ix-hide-short` steps aside.
+- **Phones and smaller windows** keep the same pages but stack and scroll normally, since fitting everything is not
+  possible there. Lists then use the "cards per page" preference.
+
+The theme continues the landing page: light tiles with dotted edges and a small coloured pixel tab, the heat
+ramp (`lib/palette.ts`), dot-matrix numerals and pixel charts. Each category page (`lib/analytics/categories.ts`)
+shows the headline number, how it splits, a months-or-years chart and a few readings next to its accounts.
+`scripts/e2e-smoke.mjs` asserts that the import, overview, category, History and Settings pages fit the window
+without scrolling and without clipping.
 
 ## Safety limits (ZIP)
 
@@ -82,7 +108,7 @@ sizes; move it to a Web Worker if profiling shows jank on very large exports.
 
 Nothing is saved by default. If the user ticks "Save a snapshot on this device", only derived data is stored in
 IndexedDB: follower and following usernames with timestamps and counts. The ZIP is never stored. Settings has
-"delete everything". Preferences (rows per page, pre-tick save) live in `localStorage`.
+"delete everything". Preferences (cards per page for scrolling layouts, pre-tick save) live in `localStorage`.
 
 ## Extending it (planned work)
 

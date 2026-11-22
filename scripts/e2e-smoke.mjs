@@ -8,8 +8,10 @@
 //
 // Drives a real Chromium-based browser (Edge by default on Windows, or $BROWSER) over the DevTools protocol, with
 // no extra dependencies. It imports a generated, synthetic ZIP shaped like a "last year" export, and checks:
-// the landing page, the Get started link, the live API indicator, the import preview and its warning, analysis,
-// the dashboard figures, the Settings backend card, and that nothing but a health check ever hits the network.
+// the landing page, the Get started link, the live API indicator, the one-screen import (privacy note, then the
+// file, then straight to the overview), the completeness warning, the overview figures, the category page and its
+// details dialog, that the import, overview, category, History and Settings pages all fit the window without
+// scrolling or clipping, the Settings backend card, and that nothing but a health check ever hits the network.
 import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -177,31 +179,21 @@ try {
 
   if (apiExpectation === 'online') check('the dev proxy reaches the backend readiness endpoint', proxied === 'ok', String(proxied))
 
-  // 4. Import the ZIP
+  // 4. Import the ZIP: one screen, with the privacy note accepted before the file is chosen
+  const n = value => value.toLocaleString('en-US')
+  const fits = () => evaluate('document.documentElement.scrollHeight <= window.innerHeight + 1')
+  const overflowing = () => evaluate('`${document.documentElement.scrollHeight}px of content in a ${window.innerHeight}px window`')
+
+  check('the import page fits the window without scrolling', await fits(), await overflowing())
+  check('the file input is locked until the privacy note is accepted', await evaluate(`document.querySelector('input[type=file]')?.disabled === true`))
+  await evaluate(`[...document.querySelectorAll('label.ix-check')].find(l => /i understand my export is read only/i.test(l.textContent))?.querySelector('input')?.click()`)
+  check('accepting the privacy note unlocks the file input', await waitFor(`document.querySelector('input[type=file]')?.disabled === false`))
+
   const { result: doc } = await send('DOM.getDocument')
   const { result: input } = await send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: 'input[type=file]' })
 
   await send('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [uploadPath] })
-  check('the import preview appears', await waitFor(`document.body.innerText.includes('WHAT WAS DETECTED')`))
-
-  const preview = await text()
-  const n = value => value.toLocaleString('en-US')
-
-  check(`the preview counts ${n(exp.followers)} followers and ${n(exp.following)} following`, /Followers found/.test(preview) && (await evaluate(`!!document.querySelector('[aria-label="${n(exp.followers)} followers found"]') && !!document.querySelector('[aria-label="${n(exp.following)} following found"]')`)))
-  if (exp.ignoredFile) check('the look-alike file is listed as ignored, not counted', /recent_follow_requests\.json/.test(preview) && /ignored/i.test(preview))
-
-  const flagged = /may be limited to a date range/i.test(preview) || (await evaluate(`!!document.querySelector('label.ix-check input') && /i understand/i.test(document.body.innerText)`))
-
-  if (exp.warning === 'yes') check('the date-limited export is flagged', flagged)
-  else if (exp.warning === 'no') check('the complete export is NOT flagged and needs no acknowledgement', !flagged)
-  else console.log(`INFO  completeness warning shown: ${flagged}`)
-
-  if (flagged) check('Analyse is blocked until the warning is acknowledged', await evaluate(`[...document.querySelectorAll('button')].find(b => /analyse this export/i.test(b.textContent))?.disabled === true`))
-
-  // 5. Acknowledge (only when asked to), analyse
-  await evaluate(`[...document.querySelectorAll('label.ix-check')].find(l => /i understand/i.test(l.textContent))?.querySelector('input')?.click()`)
-  await clickByText('button', 'analyse this export')
-  check('analysis opens the dashboard', await waitFor(`location.pathname === '/app/dashboard' && document.querySelector('h1')?.innerText.includes('NETWORK')`))
+  check('the export opens the overview straight away, with no confirm step', await waitFor(`location.pathname === '/app/dashboard' && document.querySelector('h1')?.innerText.includes('NETWORK')`))
 
   const card = label => evaluate(`document.querySelector('[aria-label^="${label}"]')?.getAttribute('aria-label') ?? ''`)
 
@@ -210,12 +202,24 @@ try {
   check(`dashboard: ${n(exp.mutuals)} mutuals`, (await card('Mutuals:')).includes(`${n(exp.mutuals)} mutual`), await card('Mutuals:'))
   check(`dashboard: ${n(exp.notFollowingBack)} not following back`, (await card('Not following back:')).includes(`${n(exp.notFollowingBack)} accounts`), await card('Not following back:'))
   check(`dashboard: ${n(exp.fans)} fans`, (await card('Fans:')).includes(`${n(exp.fans)} fans`), await card('Fans:'))
+  check('the overview fits the window without scrolling', await fits(), await overflowing())
+  check('nothing on the overview is cut off inside its tile', await evaluate(`[...document.querySelectorAll('.ix-tile')].every(e => e.scrollHeight <= e.clientHeight + 1)`), await evaluate(`[...document.querySelectorAll('.ix-tile')].filter(e => e.scrollHeight > e.clientHeight + 1).map(e => e.querySelector('h1,h2,h3')?.textContent).join(', ')`))
+
+  // The import details dialog lists every file the parser looked at.
+  if (exp.ignoredFile) {
+    await clickByText('button', 'import details')
+    check('the look-alike file is listed as ignored, not counted', await waitFor(`/recent_follow_requests\\.json/.test(document.querySelector('[role=dialog]')?.innerText ?? '') && /ignored/i.test(document.querySelector('[role=dialog]')?.innerText ?? '')`))
+    await click('[role=dialog] button[aria-label=Close]')
+  }
 
   // Optional: type the counts Instagram's own app shows, to exercise "Check against Instagram".
   const reportedFollowers = args['reported-followers'] ? Number(args['reported-followers']) : null
   const reportedFollowing = args['reported-following'] ? Number(args['reported-following']) : null
 
   if (reportedFollowers !== null || reportedFollowing !== null) {
+    await clickByText('button', 'check against instagram')
+    await waitFor(`!!document.querySelector('[role=dialog] input')`)
+
     const typeInto = (label, value) => evaluate(`(() => {
       const label = [...document.querySelectorAll('label')].find(l => l.textContent.includes(${JSON.stringify(label)}))
       const input = label && document.getElementById(label.htmlFor)
@@ -237,24 +241,39 @@ try {
 
     await sleep(500)
 
-    const panel = await evaluate(`document.querySelector('section[aria-labelledby="reconcile-title"]')?.innerText ?? ''`)
+    const panel = await evaluate(`document.querySelector('[role=dialog]')?.innerText ?? ''`)
 
     if (reportedFollowers !== null) check(`reconcile: followers ${n(exp.followers)} vs Instagram ${n(reportedFollowers)} -> ${verdict(exp.followers, reportedFollowers)}`, verdict(exp.followers, reportedFollowers) === 'match' ? /Followers match/.test(panel) : panel.includes(verdict(exp.followers, reportedFollowers)), panel.slice(0, 200))
     if (reportedFollowing !== null) check(`reconcile: following ${n(exp.following)} vs Instagram ${n(reportedFollowing)} -> ${verdict(exp.following, reportedFollowing)}`, verdict(exp.following, reportedFollowing) === 'match' ? /Following match/.test(panel) : panel.includes(verdict(exp.following, reportedFollowing)), panel.slice(0, 200))
 
     console.log('\nWhat the app says in "Check against Instagram":\n' + panel.split('\n').map(line => '   | ' + line).join('\n') + '\n')
+    await click('[role=dialog] button[aria-label=Close]')
   }
 
   const notice = /These results may not cover everyone|This export looks incomplete/.test(await text())
 
-  if (exp.warning === 'yes') check('dashboard keeps the completeness warning visible', notice)
-  else if (exp.warning === 'no') check('dashboard shows no completeness warning', !notice)
+  if (exp.warning === 'yes') check('the overview shows the completeness warning for a date-limited export', notice)
+  else if (exp.warning === 'no') check('the overview shows no completeness warning for a complete export', !notice)
+  else console.log(`INFO  completeness warning shown: ${notice}`)
 
-  // 6. A list, and Settings
+  // 6. A category page, History, and Settings: each one fits the window too
   await clickByText('a', 'not following back')
-  check(`the not-following-back list shows 1-25 of ${n(exp.notFollowingBack)}`, await waitFor(`document.body.innerText.includes('1–25 of ${n(exp.notFollowingBack)}') || document.body.innerText.includes('1-25 of ${n(exp.notFollowingBack)}')`))
+  check(`the not-following-back list shows how many accounts there are (${n(exp.notFollowingBack)})`, await waitFor(`new RegExp('1[-–]\\\\d+ of ${n(exp.notFollowingBack).replace(',', ',')}').test(document.body.innerText)`))
+  check('the category page fits the window without scrolling', await fits(), await overflowing())
+  check('the category page shows its chart and insights beside the accounts', await evaluate(`!!document.querySelector('aside[aria-label$="statistics"] .ix-columns') && /Insights/.test(document.body.innerText)`))
+  check('the account cards fill the page and none is cut off', await evaluate(`(() => { const g = document.querySelector('.ix-cards'); return !!g && g.scrollHeight <= g.clientHeight + 1 && g.children.length > 0 })()`))
+
+  await evaluate(`document.querySelector('.ix-acct-main')?.click()`)
+  check('an account opens in a details dialog with a safe profile link', await waitFor(`!!document.querySelector('[role=dialog] a[href^="https://www.instagram.com/"][rel="noopener noreferrer"]')`))
+  await click('[role=dialog] button[aria-label=Close]')
+
+  await clickByText('a', 'history')
+  await waitFor(`location.pathname === '/app/history'`)
+  check('History fits the window without scrolling', await fits(), await overflowing())
 
   await send('Page.navigate', { url: web + '/app/settings' })
+  await waitFor(`location.pathname === '/app/settings' && document.body.innerText.includes('YOUR')`)
+  check('Settings fits the window without scrolling', await fits(), await overflowing())
   if (apiExpectation === 'online') {
     check('Settings shows the backend as online with its readiness checks', await waitFor(`document.body.innerText.includes('Online and ready.') && document.body.innerText.toLowerCase().includes('redis')`), (await text()).slice(0, 200))
   }

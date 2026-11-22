@@ -145,6 +145,7 @@ describe('privacy: nothing about the user is ever sent to the backend', () => {
     const fetchMock = stubFetch(() => respond(READY))
 
     renderApp('/app/import')
+    await user.click(await screen.findByRole('checkbox', { name: /i understand my export is read only/i }))
     await user.upload(
       await screen.findByLabelText(/drop your instagram export zip/i),
       zipFile({
@@ -152,7 +153,6 @@ describe('privacy: nothing about the user is ever sent to the backend', () => {
         'connections/followers_and_following/following.json': followingJson('private_bob', 'private_carol')
       })
     )
-    await user.click(await screen.findByRole('button', { name: /analyse this export/i }))
     await screen.findByRole('heading', { level: 1, name: /your network/i })
     await user.click(screen.getByRole('link', { name: /Not following back/ }))
     await screen.findByRole('heading', { level: 1, name: 'Not following back' })

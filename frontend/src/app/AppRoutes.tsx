@@ -22,16 +22,16 @@ const AppHome = () => {
 }
 
 const NotFound = () => (
-  <>
+  <div className='ix-page'>
     <PageHead label='404' title='Not found' />
-    <div className='ix-panel'>
+    <div className='ix-tile' style={{ flex: 1 }}>
       <EmptyState title='This page does not exist' body='Use the navigation above to get back on track.'>
         <Link to='/app' className='ix-btn ix-btn-dark'>
           Go to the app
         </Link>
       </EmptyState>
     </div>
-  </>
+  </div>
 )
 
 /** The application: everything under /app. */
