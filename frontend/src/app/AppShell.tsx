@@ -72,9 +72,9 @@ const AppShell = ({ store }: PropsAppShell) => {
           </nav>
 
           <div className='ix-header-end'>
-            <span className='ix-chip'>
+            <span className='ix-chip' title='INYX reads your export in this browser tab. The file is never uploaded, and no Instagram login is ever needed.'>
               <span aria-hidden className='ix-dot-ok' />
-              Runs in your browser
+              Private: runs in your browser
             </span>
             <ApiStatus />
             <Link to='/app/import' className='ix-btn ix-btn-dark'>
@@ -86,10 +86,6 @@ const AppShell = ({ store }: PropsAppShell) => {
         <main className='ix-main ix-frame'>
           <Outlet />
         </main>
-
-        <footer className='ix-footer ix-frame'>
-          INYX reads your export in this browser tab. The file is never uploaded, and no Instagram login is ever needed.
-        </footer>
       </div>
     </DataProvider>
   )

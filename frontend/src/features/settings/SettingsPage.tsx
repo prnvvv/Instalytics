@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 
 import { PageHead } from '@/app/common'
@@ -32,6 +32,8 @@ const MODE_TEXT = {
   proxy: () => 'Development: requests to /api are forwarded to the backend by the Vite dev server.',
   none: () => 'No backend is configured. Set VITE_API_URL to show the status of the INYX API.'
 } as const
+
+const tint = (color: string) => ({ '--tile-c': color }) as CSSProperties
 
 const SettingsPage = () => {
   const { session, snapshots, storeAvailable, storageError, settings, updateSettings, deleteAllSnapshots, clearSession, clearUnavailable } = useAppData()
@@ -83,7 +85,7 @@ const SettingsPage = () => {
   }
 
   return (
-    <>
+    <div className='ix-page'>
       <PageHead
         label='Settings'
         title={
@@ -95,23 +97,23 @@ const SettingsPage = () => {
       />
 
       {message && (
-        <p className='ix-note' role='status' style={{ marginBottom: 12 }}>
+        <p className='ix-note' role='status'>
           {message}
         </p>
       )}
 
-      <div className='ix-split' style={{ alignItems: 'start' }}>
+      <div className='ix-body ix-body-3'>
         <div className='ix-stack'>
-          <section className='ix-panel' aria-labelledby='saved'>
-            <h2 id='saved' className='ix-h2'>
+          <section className='ix-tile' style={tint('#a98ae6')} aria-labelledby='saved'>
+            <h2 id='saved' className='ix-tile-title'>
               Saved on this device
             </h2>
-            <dl className='ix-kv' style={{ marginTop: 12 }}>
+            <dl className='ix-kv' style={{ marginTop: 8 }}>
               <div>
                 <dt>Saved snapshots</dt>
                 <dd>{formatCount(snapshots.length)}</dd>
               </div>
-              <div>
+              <div className='ix-hide-short'>
                 <dt>Approximate size</dt>
                 <dd>{formatBytes(approximateSize(snapshots))}</dd>
               </div>
@@ -126,42 +128,42 @@ const SettingsPage = () => {
             </dl>
 
             {storageError && (
-              <div className='ix-alert ix-alert-error' role='alert' style={{ marginTop: 12 }}>
+              <div className='ix-alert ix-alert-error' role='alert' style={{ marginTop: 10 }}>
                 <div>{storageError}</div>
               </div>
             )}
             {!storeAvailable && <p className='ix-note'>This browser blocks local storage, so nothing can be saved here.</p>}
 
-            <div className='flex flex-wrap gap-2' style={{ marginTop: 16 }}>
+            <div className='flex flex-wrap gap-2' style={{ marginTop: 12 }}>
               <button
                 type='button'
-                className={confirmDelete ? 'ix-btn ix-btn-danger' : 'ix-btn'}
+                className={confirmDelete ? 'ix-btn ix-btn-sm ix-btn-danger' : 'ix-btn ix-btn-sm'}
                 disabled={snapshots.length === 0}
                 onClick={handleDeleteAll}
                 onBlur={() => setConfirmDelete(false)}
               >
                 {confirmDelete ? 'Click again to delete everything' : 'Delete all saved snapshots'}
               </button>
-              <button type='button' className='ix-btn' disabled={!session} onClick={handleClear}>
+              <button type='button' className='ix-btn ix-btn-sm' disabled={!session} onClick={handleClear}>
                 Clear current analysis
               </button>
-              <button type='button' className='ix-btn' disabled={!session || session.unavailable.length === 0} onClick={handleClearMarks}>
+              <button type='button' className='ix-btn ix-btn-sm' disabled={!session || session.unavailable.length === 0} onClick={handleClearMarks}>
                 Clear unavailable marks
               </button>
             </div>
-            <p className='ix-note' style={{ marginTop: 10 }}>
-              Deleting removes snapshots from this browser for good. The ZIP you imported is never stored.
+            <p className='ix-note ix-hide-short' style={{ marginTop: 8 }}>
+              Deleting removes snapshots from this browser for good.
             </p>
           </section>
 
-          <section className='ix-panel' aria-labelledby='prefs'>
-            <h2 id='prefs' className='ix-h2'>
+          <section className='ix-tile' style={tint('#f5a07a')} aria-labelledby='prefs'>
+            <h2 id='prefs' className='ix-tile-title'>
               Preferences
             </h2>
-            <div className='ix-stack' style={{ marginTop: 12 }}>
+            <div className='ix-stack' style={{ marginTop: 10, gap: 10 }}>
               <label>
-                <span className='ix-mono ix-muted' style={{ display: 'block', marginBottom: 6 }}>
-                  Rows per page in lists
+                <span className='ix-label' style={{ display: 'block', marginBottom: 4 }}>
+                  Cards per page when the page scrolls
                 </span>
                 <select
                   className='ix-field'
@@ -183,33 +185,35 @@ const SettingsPage = () => {
                   onChange={event => updateSettings({ saveByDefault: event.target.checked })}
                 />
                 <span>
-                  Pre-tick "Save a snapshot" when importing
-                  <span className='ix-note' style={{ display: 'block' }}>
-                    You still confirm every import. Nothing is saved without that confirmation.
+                  Pre-tick "Also save a snapshot" when importing
+                  <span className='ix-note ix-hide-short' style={{ display: 'block' }}>
+                    You still confirm every import. Nothing is saved without that.
                   </span>
                 </span>
               </label>
             </div>
           </section>
+        </div>
 
-          <section className='ix-panel' aria-labelledby='export'>
-            <h2 id='export' className='ix-h2'>
+        <div className='ix-stack'>
+          <section className='ix-tile' style={tint('#f6d08a')} aria-labelledby='export'>
+            <h2 id='export' className='ix-tile-title'>
               Export
             </h2>
             {session ? (
               <>
-                <p className='ix-note' style={{ marginTop: 8 }}>
+                <p className='ix-note' style={{ marginTop: 6 }}>
                   CSV files open in any spreadsheet. Cells that could be read as formulas are neutralised.
                 </p>
                 <div className='flex flex-wrap gap-2' style={{ marginTop: 12 }}>
-                  <button type='button' className='ix-btn' onClick={handleSummary}>
+                  <button type='button' className='ix-btn ix-btn-sm' onClick={handleSummary}>
                     Summary
                   </button>
                   {EXPORTS.map(item => (
                     <button
                       key={item.kind}
                       type='button'
-                      className='ix-btn'
+                      className='ix-btn ix-btn-sm'
                       onClick={() => downloadText(`inyx-${item.kind}-${day}.csv`, accountsToCsv(accountsOfKind(session.analysis, item.kind), item.kind))}
                     >
                       {item.label} ({formatCount(accountsOfKind(session.analysis, item.kind).length)})
@@ -224,33 +228,18 @@ const SettingsPage = () => {
             ) : (
               <p className='ix-note' style={{ marginTop: 8 }}>
                 Import an export first. Per-list CSV export is also on every list page.{' '}
-                <Link to='/app/import' style={{ textDecoration: 'underline' }}>
+                <Link to='/app/import' className='ix-link'>
                   Import
                 </Link>
               </p>
             )}
           </section>
-        </div>
 
-        <aside className='ix-stack' aria-label='Privacy and status'>
-          <section className='ix-panel' aria-labelledby='privacy'>
-            <h2 id='privacy' className='ix-h2'>
-              Privacy
-            </h2>
-            <ul className='ix-steps' style={{ marginTop: 12 }}>
-              <li>No Instagram login, password, cookies or tokens. INYX never connects to your account.</li>
-              <li>Your export is read in this browser tab and is never uploaded. The analysis runs here too.</li>
-              <li>Snapshots are opt-in, hold only follower and following lists, and stay on this device.</li>
-              <li>INYX never follows, unfollows or messages anyone for you.</li>
-              <li>The page's typefaces load from Google Fonts, which is a request your browser makes. No export data is involved.</li>
-            </ul>
-          </section>
-
-          <section className='ix-panel' aria-labelledby='backend'>
-            <h2 id='backend' className='ix-h2'>
+          <section className='ix-tile' style={tint('#e88bb3')} aria-labelledby='backend'>
+            <h2 id='backend' className='ix-tile-title'>
               Backend
             </h2>
-            <p className='ix-note' style={{ marginTop: 8 }} role='status'>
+            <p className='ix-note' style={{ marginTop: 6 }} role='status'>
               {status === null ? 'Checking...' : BACKEND_TEXT[status.state]}
             </p>
             {status !== null && (status.state === 'online' || status.state === 'degraded') && (
@@ -267,13 +256,28 @@ const SettingsPage = () => {
               {MODE_TEXT[apiMode()]()}
             </p>
             <p className='ix-note'>Only this health check is sent. Your export and your account lists never leave the browser.</p>
-            <button type='button' className='ix-btn ix-btn-sm' style={{ marginTop: 10 }} onClick={checkBackend}>
+            <button type='button' className='ix-btn ix-btn-sm' style={{ marginTop: 10, alignSelf: 'flex-start' }} onClick={checkBackend}>
               Check again
             </button>
           </section>
-        </aside>
+        </div>
+
+        <div className='ix-stack'>
+          <section className='ix-tile' style={tint('#8593ea')} aria-labelledby='privacy'>
+            <h2 id='privacy' className='ix-tile-title'>
+              Privacy
+            </h2>
+            <ul className='ix-bullets' style={{ marginTop: 10 }}>
+              <li>No Instagram login, password, cookies or tokens. INYX never connects to your account.</li>
+              <li>Your export is read in this browser tab and is never uploaded. The analysis runs here too.</li>
+              <li>Snapshots are opt-in, hold only follower and following lists, and stay on this device.</li>
+              <li>INYX never follows, unfollows or messages anyone for you.</li>
+              <li>The page's typefaces load from Google Fonts, which is a request your browser makes. No export data is involved.</li>
+            </ul>
+          </section>
+        </div>
       </div>
-    </>
+    </div>
   )
 }
 

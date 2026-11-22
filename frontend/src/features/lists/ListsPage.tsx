@@ -1,13 +1,21 @@
-import { useMemo, useState } from 'react'
+import { Undo2 } from 'lucide-react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { Navigate, NavLink, useParams } from 'react-router'
 
-import { CompletenessNotice, MarksNotice, NoDataState, PageHead, SessionContext } from '@/app/common'
-import { useAppData } from '@/data/context'
+import { CompletenessNotice, MarksNotice, NoDataState, PageHead } from '@/app/common'
+import DotBar from '@/components/dots/DotBar'
+import DotColumns, { type DotColumn } from '@/components/dots/DotColumns'
+import DotText from '@/components/dots/DotText'
+import Dialog from '@/components/ui/Dialog'
+import { useAppData, type Session } from '@/data/context'
+import { monthlyActivity } from '@/lib/analytics/activity'
+import { summarizeKind } from '@/lib/analytics/categories'
 import { accountsOfKind, type Relationship, type RelationshipKind } from '@/lib/analytics/relationships'
 import { REASONS, REASON_LABEL, isReason, unavailableAccounts, type UnavailableReason } from '@/lib/analytics/unavailable'
-import { formatCount, formatDate } from '@/lib/format'
+import { formatCount, formatDate, formatPercent } from '@/lib/format'
+import { KIND_COLOR } from '@/lib/palette'
 
-import AccountTable from './AccountTable'
+import AccountBrowser from './AccountBrowser'
 
 type ListKind = RelationshipKind | 'unavailable'
 
@@ -17,45 +25,247 @@ const KINDS: {
   title: string
   description: string
   dateHeader: string
+  chartTitle: string
 }[] = [
   {
     kind: 'not-following-back',
     label: 'Not following back',
     title: 'Not following back',
     description: 'Accounts you follow that do not follow you back. Review them yourself on Instagram.',
-    dateHeader: 'You followed'
+    dateHeader: 'You followed',
+    chartTitle: 'Accounts you followed'
   },
   {
     kind: 'fans',
     label: 'Fans',
     title: 'Fans',
     description: 'Followers you do not follow back.',
-    dateHeader: 'Followed you'
+    dateHeader: 'Followed you',
+    chartTitle: 'New fans'
   },
   {
     kind: 'mutuals',
     label: 'Mutuals',
     title: 'Mutual connections',
     description: 'Accounts you follow that also follow you.',
-    dateHeader: 'Followed you'
+    dateHeader: 'Followed you',
+    chartTitle: 'New mutuals'
   },
-  { kind: 'followers', label: 'Followers', title: 'Followers', description: 'Everyone who follows you.', dateHeader: 'Followed you' },
-  { kind: 'following', label: 'Following', title: 'Following', description: 'Every account you follow.', dateHeader: 'You followed' },
+  {
+    kind: 'followers',
+    label: 'Followers',
+    title: 'Followers',
+    description: 'Everyone who follows you.',
+    dateHeader: 'Followed you',
+    chartTitle: 'New followers'
+  },
+  {
+    kind: 'following',
+    label: 'Following',
+    title: 'Following',
+    description: 'Every account you follow.',
+    dateHeader: 'You followed',
+    chartTitle: 'Accounts you followed'
+  },
   {
     kind: 'unavailable',
     label: 'Unavailable',
     title: 'Unavailable accounts',
-    description:
-      'Accounts you marked as no longer available on Instagram, for example deactivated or deleted. They are left out of every figure. Restore any you marked by mistake.',
-    dateHeader: 'Followed'
+    description: 'Accounts you marked as no longer available on Instagram. They are left out of every figure.',
+    dateHeader: 'Followed',
+    chartTitle: ''
   }
 ]
+
+type Mode = 'months' | 'years'
+
+type PropsRail = {
+  config: (typeof KINDS)[number]
+  session: Session
+  accounts: ReturnType<typeof accountsOfKind>
+}
+
+/** The left side of a category page: the headline number, how it splits, a chart and a few readings. */
+const KindRail = ({ config, session, accounts }: PropsRail) => {
+  const [mode, setMode] = useState<Mode>('months')
+  const [more, setMore] = useState(false)
+  const color = KIND_COLOR[config.kind]
+  const kind = config.kind as RelationshipKind
+  const referenceSeconds = Math.floor(new Date(session.analyzedAt).getTime() / 1000)
+  const summary = useMemo(
+    () => summarizeKind(kind, session.analysis, accounts, referenceSeconds),
+    [kind, session.analysis, accounts, referenceSeconds]
+  )
+  const { stats, composition } = summary
+  const noun = config.chartTitle.toLowerCase()
+
+  const columns = useMemo<DotColumn[] | null>(() => {
+    if (mode === 'years') {
+      return stats.byYear.length === 0
+        ? null
+        : stats.byYear.map(item => ({
+            key: String(item.year),
+            label: String(item.year),
+            value: item.count,
+            tooltip: `${item.year}: ${formatCount(item.count)} ${noun}`
+          }))
+    }
+
+    const buckets = monthlyActivity(accounts, 12)
+
+    return buckets
+      ? buckets.map(b => ({ key: b.key, label: b.label.slice(0, 3), value: b.count, tooltip: `${b.label}: ${formatCount(b.count)} ${noun}` }))
+      : null
+  }, [mode, stats, accounts, noun])
+
+  return (
+    <aside className='ix-rail' aria-label={`${config.title} statistics`}>
+      <section className='ix-tile' style={{ '--tile-c': color } as CSSProperties}>
+        <p className='ix-label'>{config.label}</p>
+        <div className='ix-metric' style={{ marginTop: 10 }}>
+          <DotText text={formatCount(accounts.length)} dot={6} color={color} label={`${formatCount(accounts.length)} ${config.label.toLowerCase()}`} />
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <DotBar
+            parts={composition.parts}
+            total={composition.total}
+            segments={28}
+            label={composition.caption}
+          />
+          <p className='ix-tile-note'>{composition.caption}</p>
+        </div>
+      </section>
+
+      <section className='ix-tile ix-rail-grow' style={{ '--tile-c': color } as CSSProperties} aria-label={`${config.chartTitle} over time`}>
+        <div className='ix-tile-head'>
+          <div>
+            <h2 className='ix-tile-title'>{config.chartTitle}</h2>
+            <p className='ix-tile-sub'>From the dates in your export</p>
+          </div>
+          <div className='ix-seg' role='group' aria-label='Choose the time scale'>
+            <button type='button' aria-pressed={mode === 'months'} onClick={() => setMode('months')}>
+              Months
+            </button>
+            <button type='button' aria-pressed={mode === 'years'} onClick={() => setMode('years')}>
+              Years
+            </button>
+          </div>
+        </div>
+        <div className='ix-tile-body' style={{ marginTop: 10 }}>
+          {columns ? (
+            <DotColumns columns={columns} color={color} peakColor='#f6d08a' fill label={`${config.chartTitle} by ${mode === 'months' ? 'month' : 'year'}`} />
+          ) : (
+            <p className='ix-note'>This export has no dates for these accounts, so there is nothing to chart.</p>
+          )}
+        </div>
+      </section>
+
+      <section className='ix-tile' style={{ '--tile-c': color } as CSSProperties} aria-label='Insights'>
+        <div className='ix-tile-head'>
+          <h2 className='ix-tile-title'>Insights</h2>
+          <button type='button' className='ix-btn ix-btn-sm' onClick={() => setMore(true)}>
+            Read more
+          </button>
+        </div>
+        <ul className='ix-insights' style={{ marginTop: 6 }}>
+          {summary.insights.slice(0, 2).map(insight => (
+            <li key={insight.id}>{insight.text}</li>
+          ))}
+        </ul>
+      </section>
+
+      <Dialog open={more} onClose={() => setMore(false)} title={`${config.title}: in detail`} description='Every reading below comes straight from your export.'>
+        <ul className='ix-insights'>
+          {summary.insights.map(insight => (
+            <li key={insight.id}>{insight.text}</li>
+          ))}
+        </ul>
+        <dl className='ix-facts' style={{ marginTop: 12 }}>
+          <div>
+            <dt>Accounts</dt>
+            <dd>{formatCount(stats.count)}</dd>
+          </div>
+          <div>
+            <dt>With a date in the export</dt>
+            <dd>{stats.count === 0 ? 'n/a' : formatPercent((stats.withDates * 100) / stats.count)}</dd>
+          </div>
+          <div>
+            <dt>Newest</dt>
+            <dd>{formatDate(stats.newest)}</dd>
+          </div>
+          <div>
+            <dt>Oldest</dt>
+            <dd>{formatDate(stats.oldest)}</dd>
+          </div>
+          <div>
+            <dt>In the last 30 days</dt>
+            <dd>{formatCount(stats.last30)}</dd>
+          </div>
+          <div>
+            <dt>In the last year</dt>
+            <dd>{formatCount(stats.last365)}</dd>
+          </div>
+          <div>
+            <dt>Older than a year</dt>
+            <dd>{formatCount(stats.olderThanYear)}</dd>
+          </div>
+        </dl>
+      </Dialog>
+    </aside>
+  )
+}
+
+/** The left side of the Unavailable page: how many accounts are set aside, and why. */
+const UnavailableRail = ({ session }: { session: Session }) => {
+  const counts = REASONS.map(reason => ({ reason, count: Object.values(session.reasons).filter(r => r === reason).length }))
+  const unspecified = session.unavailable.length - counts.reduce((sum, item) => sum + item.count, 0)
+  const where =
+    session.snapshotId !== null
+      ? 'Your marks are saved with this snapshot, in this browser only.'
+      : session.origin === 'sample'
+        ? 'This is sample data, so nothing is saved.'
+        : 'Marks are kept only while this tab is open; save a snapshot to keep them.'
+
+  return (
+    <aside className='ix-rail' aria-label='Unavailable accounts statistics'>
+      <section className='ix-tile' style={{ '--tile-c': KIND_COLOR.unavailable } as CSSProperties}>
+        <p className='ix-label'>Set aside</p>
+        <div className='ix-metric' style={{ marginTop: 10 }}>
+          <DotText text={formatCount(session.unavailable.length)} dot={6} color={KIND_COLOR.unavailable} label={`${formatCount(session.unavailable.length)} unavailable accounts`} />
+        </div>
+        <p className='ix-tile-note' style={{ marginTop: 14 }}>
+          left out of every figure
+        </p>
+      </section>
+
+      <section className='ix-tile ix-rail-grow' style={{ '--tile-c': KIND_COLOR.unavailable } as CSSProperties}>
+        <h2 className='ix-tile-title'>Why you set them aside</h2>
+        <p className='ix-tile-sub'>The label is yours. INYX cannot tell these apart from your export.</p>
+        <dl className='ix-facts' style={{ marginTop: 10 }}>
+          {counts.map(item => (
+            <div key={item.reason}>
+              <dt>{REASON_LABEL[item.reason]}</dt>
+              <dd>{formatCount(item.count)}</dd>
+            </div>
+          ))}
+          <div>
+            <dt>Not specified</dt>
+            <dd>{formatCount(unspecified)}</dd>
+          </div>
+        </dl>
+        <p className='ix-note' style={{ marginTop: 'auto', paddingTop: 10 }}>
+          {where}
+        </p>
+      </section>
+    </aside>
+  )
+}
 
 const ListsPage = () => {
   const { kind } = useParams()
   const { session, settings, setUnavailable } = useAppData()
   const active = KINDS.find(k => k.kind === kind)
-  // Applied to every account ticked or bulk-marked from the lists; empty means "not specified".
+  // Applied to every account marked from the lists; empty means "not specified".
   const [reason, setReason] = useState<UnavailableReason | ''>('')
 
   // How each account relates to you, from the complete lists so marked accounts keep a status too.
@@ -91,10 +301,10 @@ const ListsPage = () => {
 
   if (!session) {
     return (
-      <>
+      <div className='ix-page'>
         <PageHead label='Lists' title={active.title} />
         <NoDataState />
-      </>
+      </div>
     )
   }
 
@@ -105,18 +315,25 @@ const ListsPage = () => {
 
   const accounts = accountsFor(active.kind)
   const isUnavailableTab = active.kind === 'unavailable'
+  const reasonSelect = (value: UnavailableReason | '', onChange: (next: UnavailableReason | '') => void, label: string) => (
+    <label>
+      <span className='sr-only'>{label}</span>
+      <select className='ix-field' aria-label={label} value={value} onChange={event => onChange(isReason(event.target.value) ? event.target.value : '')}>
+        <option value=''>Not specified</option>
+        {REASONS.map(item => (
+          <option key={item} value={item}>
+            {REASON_LABEL[item]}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
 
   return (
-    <>
-      <PageHead
-        label='Lists'
-        title={active.title}
-        sub={active.description}
-        actions={<SessionContext session={session} />}
-      />
+    <div className='ix-page'>
+      <PageHead label='Lists' title={active.title} sub={active.description} actions={<MarksNotice session={session} />} />
 
       <CompletenessNotice session={session} />
-      {!isUnavailableTab && <MarksNotice session={session} />}
 
       <nav aria-label='Lists' className='ix-tabs'>
         {KINDS.filter(item => item.kind !== 'unavailable' || session.unavailable.length > 0 || isUnavailableTab).map(item => (
@@ -127,117 +344,109 @@ const ListsPage = () => {
         ))}
       </nav>
 
-      <section className='ix-card' aria-label={active.title}>
-        {active.kind === 'not-following-back' && accounts.length > 0 && (
-          <p className='ix-note' style={{ marginBottom: 14 }}>
-            INYX never follows or unfollows for you. Use the profile links to review accounts yourself. If a profile
-            shows that the page is not available, tick <b>Unavailable</b> to leave it out of your figures.
-          </p>
+      <div className='ix-body ix-body-rail'>
+        {isUnavailableTab ? (
+          <UnavailableRail session={session} />
+        ) : (
+          // Remounted per list so the chart scale and the open dialog reset when the tab changes.
+          <KindRail key={active.kind} config={active} session={session} accounts={accounts} />
         )}
 
-        {!isUnavailableTab && accounts.length > 0 && (
-          <label style={{ display: 'block', marginBottom: 14 }}>
-            <span className='ix-mono ix-muted' style={{ display: 'block', marginBottom: 6 }}>
-              Reason to record when you mark accounts
-            </span>
-            <select className='ix-field' value={reason} onChange={event => setReason(isReason(event.target.value) ? event.target.value : '')}>
-              <option value=''>Not specified</option>
-              {REASONS.map(item => (
-                <option key={item} value={item}>
-                  {REASON_LABEL[item]}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
+        <section className='ix-tile' style={{ '--tile-c': KIND_COLOR[active.kind] } as CSSProperties} aria-label={active.title}>
+          {active.kind === 'not-following-back' && accounts.length > 0 && (
+            <p className='ix-note' style={{ marginBottom: 10 }}>
+              INYX never follows or unfollows for you. Open profiles to review accounts yourself. If a profile shows that the page is not available, tick it
+              to leave it out of your figures.
+            </p>
+          )}
 
-        {/* Remount per list so search, filters and the open row reset when the tab changes. */}
-        <AccountTable
-          key={active.kind}
-          accounts={accounts}
-          relationOf={username => relations.get(username) ?? null}
-          showStatus={active.kind === 'followers' || active.kind === 'following' || isUnavailableTab}
-          csvName={active.kind}
-          pageSize={settings.rowsPerPage}
-          reference={new Date(session.analyzedAt)}
-          dateHeader={active.dateHeader}
-          emptyMessage={isUnavailableTab ? 'No accounts are marked as unavailable.' : 'No accounts in this list for this export.'}
-          detailsOf={account => {
-            const theyFollow = since.followers.has(account.username)
-            const youFollow = since.following.has(account.username)
-            const day = (t: number | null | undefined) => (t ? formatDate(t) : 'date not in export')
-            const reason = session.reasons[account.username]
+          <AccountBrowser
+            key={active.kind}
+            accounts={accounts}
+            relationOf={username => relations.get(username) ?? null}
+            csvName={active.kind}
+            fallbackPageSize={settings.rowsPerPage}
+            reference={new Date(session.analyzedAt)}
+            dateHeader={active.dateHeader}
+            emptyMessage={isUnavailableTab ? 'No accounts are marked as unavailable.' : 'No accounts in this list for this export.'}
+            detailsOf={account => {
+              const theyFollow = since.followers.has(account.username)
+              const youFollow = since.following.has(account.username)
+              const day = (t: number | null | undefined) => (t ? formatDate(t) : 'date not in export')
+              const why = session.reasons[account.username]
 
-            return [
-              { label: 'You follow them', value: youFollow ? `Yes, since ${day(since.following.get(account.username))}` : 'No' },
-              { label: 'They follow you', value: theyFollow ? `Yes, since ${day(since.followers.get(account.username))}` : 'No' },
-              ...(marked.has(account.username)
-                ? [{ label: 'Marked unavailable', value: reason ? REASON_LABEL[reason] : 'Yes, no reason given' }]
-                : [])
-            ]
-          }}
-          csvExtra={isUnavailableTab ? { header: 'reason', value: a => (session.reasons[a.username] ? REASON_LABEL[session.reasons[a.username]] : '') } : undefined}
-          pageAction={
-            isUnavailableTab
-              ? undefined
-              : {
-                  label: count => `Mark these ${count} as unavailable`,
-                  run: visible =>
-                    void setUnavailable(
-                      visible.map(a => a.username),
-                      true,
-                      reason || undefined
-                    )
-                }
-          }
-          rowAction={
-            isUnavailableTab
-              ? {
-                  header: 'Reason / Restore',
-                  render: account => (
-                    <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <select
-                        className='ix-field'
-                        aria-label={`Reason for ${account.username}`}
-                        value={session.reasons[account.username] ?? ''}
-                        onChange={event =>
-                          void setUnavailable([account.username], true, isReason(event.target.value) ? event.target.value : undefined)
-                        }
-                      >
-                        <option value=''>Not specified</option>
-                        {REASONS.map(item => (
-                          <option key={item} value={item}>
-                            {REASON_LABEL[item]}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type='button'
-                        className='ix-btn ix-btn-sm'
-                        aria-label={`Restore ${account.username} to your figures`}
-                        onClick={() => void setUnavailable([account.username], false)}
-                      >
-                        Restore
-                      </button>
-                    </span>
-                  )
-                }
-              : {
-                  header: 'Unavailable',
-                  render: account => (
-                    <input
-                      type='checkbox'
-                      className='ix-tick'
-                      checked={false}
-                      aria-label={`Mark ${account.username} as no longer available on Instagram`}
-                      onChange={() => void setUnavailable([account.username], true, reason || undefined)}
-                    />
-                  )
-                }
-          }
-        />
-      </section>
-    </>
+              return [
+                { label: 'You follow them', value: youFollow ? `Yes, since ${day(since.following.get(account.username))}` : 'No' },
+                { label: 'They follow you', value: theyFollow ? `Yes, since ${day(since.followers.get(account.username))}` : 'No' },
+                ...(marked.has(account.username) ? [{ label: 'Marked unavailable', value: why ? REASON_LABEL[why] : 'Yes, no reason given' }] : [])
+              ]
+            }}
+            csvExtra={
+              isUnavailableTab ? { header: 'reason', value: a => (session.reasons[a.username] ? REASON_LABEL[session.reasons[a.username]] : '') } : undefined
+            }
+            cardControl={account =>
+              isUnavailableTab ? (
+                <button
+                  type='button'
+                  className='ix-btn ix-btn-icon'
+                  aria-label={`Restore ${account.username} to your figures`}
+                  title='Restore to your figures'
+                  onClick={() => void setUnavailable([account.username], false)}
+                >
+                  <Undo2 aria-hidden size={14} />
+                </button>
+              ) : (
+                <input
+                  type='checkbox'
+                  className='ix-tick'
+                  checked={false}
+                  aria-label={`Mark ${account.username} as no longer available on Instagram`}
+                  onChange={() => void setUnavailable([account.username], true, reason || undefined)}
+                />
+              )
+            }
+            dialogControls={account =>
+              isUnavailableTab ? (
+                <div className='flex flex-wrap items-center gap-2'>
+                  {reasonSelect(session.reasons[account.username] ?? '', next => void setUnavailable([account.username], true, next || undefined), `Reason for ${account.username}`)}
+                  <button type='button' className='ix-btn' onClick={() => void setUnavailable([account.username], false)}>
+                    Restore to my figures
+                  </button>
+                </div>
+              ) : (
+                <div className='flex flex-wrap items-center gap-2'>
+                  {reasonSelect(reason, setReason, 'Reason to record when you mark accounts')}
+                  <button type='button' className='ix-btn' onClick={() => void setUnavailable([account.username], true, reason || undefined)}>
+                    Mark as unavailable
+                  </button>
+                </div>
+              )
+            }
+            footerControls={visible =>
+              isUnavailableTab ? null : (
+                <>
+                  {reasonSelect(reason, setReason, 'Reason to record when you mark accounts')}
+                  <button
+                    type='button'
+                    className='ix-btn ix-btn-sm'
+                    disabled={visible.length === 0}
+                    onClick={() =>
+                      void setUnavailable(
+                        visible.map(a => a.username),
+                        true,
+                        reason || undefined
+                      )
+                    }
+                  >
+                    {`Mark these ${visible.length} as unavailable`}
+                  </button>
+                </>
+              )
+            }
+          />
+        </section>
+      </div>
+    </div>
   )
 }
 

@@ -22,35 +22,37 @@ type PropsStatCard = {
 }
 
 const StatCard = ({ title, subtitle, icon: Icon, color, value, valueLabel, to, chart, note }: PropsStatCard) => {
+  const style = { '--tile-c': color, '--ix-icon': color } as CSSProperties
+
   const body = (
     <>
-      <div className='ix-card-head'>
-        <div>
-          <h3 className='ix-card-title'>{title}</h3>
-          <p className='ix-card-sub'>{subtitle}</p>
+      <div className='ix-tile-head'>
+        <div style={{ minWidth: 0 }}>
+          <h3 className='ix-tile-title'>{title}</h3>
+          <p className='ix-tile-sub'>{subtitle}</p>
         </div>
-        <span aria-hidden className='ix-card-icon' style={{ '--ix-icon': color } as CSSProperties}>
-          <Icon size={15} strokeWidth={1.75} />
+        <span aria-hidden className='ix-tile-icon'>
+          <Icon size={14} strokeWidth={1.75} />
         </span>
       </div>
 
       <div className='ix-metric'>
-        <DotText text={value.toUpperCase()} label={valueLabel} dot={6} color={color} />
+        <DotText text={value.toUpperCase()} label={valueLabel} dot={5} color={color} />
       </div>
 
-      <div className='ix-card-foot'>
+      <div className='ix-tile-foot'>
         {chart}
-        {note && <p className='ix-card-note'>{note}</p>}
+        {note && <p className='ix-tile-note'>{note}</p>}
       </div>
     </>
   )
 
   return to ? (
-    <Link to={to} className='ix-card' aria-label={`${title}: ${valueLabel}. Open the list.`}>
+    <Link to={to} className='ix-tile' style={style} aria-label={`${title}: ${valueLabel}. Open the list.`}>
       {body}
     </Link>
   ) : (
-    <article className='ix-card' aria-label={`${title}: ${valueLabel}`}>
+    <article className='ix-tile' style={style} aria-label={`${title}: ${valueLabel}`}>
       {body}
     </article>
   )

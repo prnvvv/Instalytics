@@ -20,6 +20,7 @@ const Result = ({ result }: { result: ReconcileResult }) => (
  * is computed here in the browser; the numbers are not stored or sent anywhere.
  */
 const ReconcilePanel = ({ session }: { session: Session }) => {
+  // Rendered inside a dialog titled "Check against Instagram".
   const [followersText, setFollowersText] = useState('')
   const [followingText, setFollowingText] = useState('')
   const followersId = useId()
@@ -41,20 +42,13 @@ const ReconcilePanel = ({ session }: { session: Session }) => {
   const invalid = (text: string) => text.trim() !== '' && parseReported(text) === null
 
   return (
-    <section className='ix-card ix-span-4' aria-labelledby='reconcile-title'>
-      <div className='ix-card-head'>
-        <div>
-          <h2 id='reconcile-title' className='ix-card-title'>
-            Check against Instagram
-          </h2>
-          <p className='ix-card-sub'>
-            Optional. Type the counts your Instagram profile shows to see how they compare with this export. Nothing
-            you type is stored or sent anywhere.
-          </p>
-        </div>
-      </div>
+    <section aria-label='Check against Instagram'>
+      <p className='ix-note'>
+        Optional. Type the counts your Instagram profile shows to see how they compare with this export. Nothing you
+        type is stored or sent anywhere.
+      </p>
 
-      <div className='ix-toolbar' style={{ marginTop: 16 }}>
+      <div className='ix-toolbar' style={{ marginTop: 14 }}>
         <div>
           <label htmlFor={followersId} className='ix-mono' style={{ display: 'block', marginBottom: 6, color: 'var(--ix-muted)' }}>
             Followers in the Instagram app
@@ -112,7 +106,7 @@ const ReconcilePanel = ({ session }: { session: Session }) => {
       {results.some(result => result.verdict === 'export-has-more') && (
         <p className='ix-note' style={{ marginTop: 12 }}>
           To close the gap, open the profile links in{' '}
-          <Link to='/app/lists/not-following-back' style={{ textDecoration: 'underline' }}>
+          <Link to='/app/lists/not-following-back' className='ix-link'>
             Not following back
           </Link>{' '}
           and tick the ones that are no longer available. Each tick leaves that account out of every figure here.

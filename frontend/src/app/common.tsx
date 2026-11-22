@@ -1,6 +1,8 @@
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import type { ReactNode } from 'react'
 
+import PixelStrip from '@/components/dots/PixelStrip'
+import Dialog from '@/components/ui/Dialog'
 import { useAppData, type Session } from '@/data/context'
 import { formatDateTime } from '@/lib/format'
 import type { ParseIssue } from '@/lib/instagram/types'
@@ -10,17 +12,22 @@ type PropsPageHead = {
   title: ReactNode
   sub?: ReactNode
   actions?: ReactNode
+  /** Keep the line under the title on short windows, where it is otherwise hidden to save room. */
+  keepSub?: boolean
 }
 
 /** The page title block: a mono label, the condensed-caps title, and an optional line and actions. */
-export const PageHead = ({ label, title, sub, actions }: PropsPageHead) => (
-  <div className='ix-page-head'>
-    <div>
-      <p className='ix-mono ix-muted'>{label}</p>
+export const PageHead = ({ label, title, sub, actions, keepSub = false }: PropsPageHead) => (
+  <div className='ix-head'>
+    <div style={{ minWidth: 0 }}>
+      <p className='ix-label'>{label}</p>
       <h1 className='ix-title'>{title}</h1>
-      {sub && <p className='ix-sub'>{sub}</p>}
+      {sub && <div className={keepSub ? 'ix-sub ix-sub-keep' : 'ix-sub'}>{sub}</div>}
     </div>
-    {actions && <div className='flex flex-wrap items-center gap-2'>{actions}</div>}
+    <div className='ix-head-end'>
+      <PixelStrip className='ix-hide-sm' count={10} seed={label.length} />
+      {actions}
+    </div>
   </div>
 )
 
@@ -28,11 +35,10 @@ type PropsEmptyState = {
   title: string
   body: string
   children?: ReactNode
-  tone?: 'dark' | 'light'
 }
 
-export const EmptyState = ({ title, body, children, tone = 'light' }: PropsEmptyState) => (
-  <div className={tone === 'dark' ? 'ix-empty' : 'ix-empty ix-light'}>
+export const EmptyState = ({ title, body, children }: PropsEmptyState) => (
+  <div className='ix-empty'>
     <h2 className='ix-h2'>{title}</h2>
     <p>{body}</p>
     {children && <div className='flex flex-wrap justify-center gap-2'>{children}</div>}
@@ -45,14 +51,14 @@ export const NoDataState = () => {
 
   if (loading) {
     return (
-      <div className='ix-panel' role='status'>
+      <div className='ix-tile' role='status'>
         <p className='ix-note'>Checking this device for saved snapshots...</p>
       </div>
     )
   }
 
   return (
-    <div className='ix-panel ix-light'>
+    <div className='ix-tile' style={{ flex: 1 }}>
       <EmptyState
         title='No data yet'
         body='Import your Instagram export to see your followers, following and mutual connections. It stays in this browser.'
@@ -82,54 +88,73 @@ export const IssueAlert = ({ issue, title }: { issue: ParseIssue; title: string 
 )
 
 /**
- * Warns when the analysis on screen may not cover the whole network. The figures are exact for the files that
- * were read, so this says what may be missing instead of leaving the numbers to look authoritative.
+ * Warns, in one line, when the analysis on screen may not cover the whole network. The figures are exact for the
+ * files that were read, so this says what may be missing instead of leaving the numbers to look authoritative.
+ * The full list of problems opens in a dialog so it never pushes the page content down.
  */
 export const CompletenessNotice = ({ session }: { session: Session }) => {
+  const [open, setOpen] = useState(false)
+
   if (session.origin === 'sample' || session.completeness === null || session.completeness === 'complete') return null
 
   const problems = session.issues.filter(issue => issue.severity !== 'info')
+  const incomplete = session.completeness === 'incomplete'
 
   return (
-    <div className={session.completeness === 'incomplete' ? 'ix-alert ix-alert-error' : 'ix-alert'} role='status' style={{ marginBottom: 12 }}>
-      <div>
-        <strong>
-          {session.completeness === 'incomplete' ? 'This export looks incomplete' : 'These results may not cover everyone'}
-        </strong>
-        The figures are exact for the files that were read, but they may not be your whole network.
-        {problems.length > 0 && (
-          <ul style={{ marginTop: 6, listStyle: 'disc', paddingLeft: 18 }}>
+    <div className={incomplete ? 'ix-banner ix-banner-error' : 'ix-banner ix-banner-warn'} role='status'>
+      <span>
+        <strong>{incomplete ? 'This export looks incomplete.' : 'These results may not cover everyone.'}</strong> The figures are exact for the
+        files that were read.
+      </span>
+      <button type='button' className='ix-btn ix-btn-sm' onClick={() => setOpen(true)}>
+        See what may be missing
+      </button>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={incomplete ? 'This export looks incomplete' : 'These results may not cover everyone'}
+        description='The figures are exact for the files that were read, but they may not be your whole network.'
+      >
+        {problems.length > 0 ? (
+          <ul style={{ listStyle: 'disc', paddingLeft: 18, display: 'grid', gap: 8, fontSize: '0.88rem' }}>
             {problems.map((issue, index) => (
               <li key={`${issue.code}-${index}`}>{issue.message}</li>
             ))}
           </ul>
+        ) : (
+          <p className='ix-note'>No specific problem was recorded.</p>
         )}
-        <Link to='/app/import' style={{ textDecoration: 'underline', display: 'inline-block', marginTop: 6 }}>
+        <Link to='/app/import' className='ix-btn ix-btn-dark' style={{ marginTop: 16 }} onClick={() => setOpen(false)}>
           Import a fresh export
         </Link>
-      </div>
+      </Dialog>
     </div>
   )
 }
 
 /** Says how many accounts are left out of the figures because the user marked them unavailable. */
 export const MarksNotice = ({ session }: { session: Session }) => {
-  if (session.unavailable.length === 0) return null
-
   const count = session.unavailable.length
 
+  if (count === 0) return null
+
+  const where =
+    session.snapshotId !== null
+      ? 'Saved with this snapshot, in this browser only.'
+      : session.origin === 'sample'
+        ? 'This is sample data, so nothing is saved.'
+        : 'Kept only while this tab is open; save a snapshot to keep them.'
+
   return (
-    <p className='ix-note' role='status' style={{ marginBottom: 12 }}>
-      <b>{count.toLocaleString('en-US')}</b> {count === 1 ? 'account is' : 'accounts are'} marked as unavailable and left out of every figure.{' '}
-      {session.snapshotId !== null
-        ? 'Your marks are saved with this snapshot, in this browser only.'
-        : session.origin === 'sample'
-          ? 'This is sample data, so nothing is saved.'
-          : 'Marks are kept only while this tab is open; save a snapshot to keep them.'}{' '}
-      <Link to='/app/lists/unavailable' style={{ textDecoration: 'underline' }}>
-        Review them
-      </Link>
-    </p>
+    <Link
+      to='/app/lists/unavailable'
+      className='ix-chip'
+      role='status'
+      title={`${count.toLocaleString('en-US')} ${count === 1 ? 'account is' : 'accounts are'} marked as unavailable and left out of every figure. ${where}`}
+    >
+      <span aria-hidden className='ix-dot-warn' />
+      {count.toLocaleString('en-US')} marked unavailable
+    </Link>
   )
 }
 
@@ -141,7 +166,9 @@ export const SessionContext = ({ session }: { session: Session }) => (
     ) : (
       <>
         <span className='ix-chip'>{session.origin === 'snapshot' ? 'Saved snapshot' : 'This import'}</span>
-        <span className='ix-chip'>{session.fileName}</span>
+        <span className='ix-chip' style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {session.fileName}
+        </span>
       </>
     )}
     <span className='ix-chip'>Analysed {formatDateTime(session.analyzedAt)}</span>

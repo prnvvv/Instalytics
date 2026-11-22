@@ -56,7 +56,7 @@ node scripts\e2e-smoke.mjs --web http://localhost:5173 --api online
 data-validation script. `e2e-smoke.mjs` drives a real browser against the **running** servers over the DevTools
 protocol (no extra dependencies; Edge by default, or pass `--browser <path>` / set `$BROWSER`). It generates a
 synthetic ZIP shaped like a "last year" export and checks the whole path: landing page, Get started, the API
-indicator, the import preview and its date-range warning, analysis, the exact dashboard figures, Settings, and
+indicator, the one-screen import and its date-range warning, the exact overview figures, a category page and itsdetails dialog, that every page fits the window without scrolling, Settings, and
 that the only network calls are body-less health checks. Use `--api offline` to test with the backend down.
 
 ## Parser parity
