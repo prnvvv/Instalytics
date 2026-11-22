@@ -7,6 +7,10 @@ from app.modules.parser.service import parse_export_files
 from tests.factories import TS, followers_entry, followers_json, following_entry, following_json
 
 
+def codes(result) -> list[str]:
+    return [i.code for i in result.issues]
+
+
 def names(accounts: list) -> list[str]:
     return [a.username for a in accounts]
 
@@ -111,7 +115,7 @@ def test_utf8_bom_is_tolerated() -> None:
     assert names(result.followers) == ["alice"]
 
 
-def test_unrelated_files_are_ignored_without_issues() -> None:
+def test_unrelated_files_are_ignored_and_the_absence_is_reported() -> None:
     result = parse_export_files(
         {
             "connections/followers_and_following/close_friends.json": json.dumps(
@@ -126,7 +130,9 @@ def test_unrelated_files_are_ignored_without_issues() -> None:
     )
     assert result.followers == []
     assert result.following == []
-    assert result.issues == []
+    # Nothing usable was found. This must be loud: silently returning zero would look like success.
+    assert codes(result) == ["no_connection_files"]
+    assert result.diagnostics.status == "incomplete"
     assert result.files == []
 
 
@@ -135,32 +141,33 @@ def test_malformed_json_reports_issue_and_continues() -> None:
         {"followers_1.json": b"{not json", "followers_2.json": followers_json("alice")}
     )
     assert names(result.followers) == ["alice"]
-    assert [i.code for i in result.issues] == ["invalid_json"]
+    assert "invalid_json" in codes(result)
     assert "not json" not in result.issues[0].message
+    assert result.diagnostics.status == "incomplete"
 
 
 def test_invalid_encoding_reports_issue() -> None:
     result = parse_export_files({"followers_1.json": b"\xff\xfe\x00bad"})
-    assert [i.code for i in result.issues] == ["invalid_json"]
+    assert "invalid_json" in codes(result)
 
 
 def test_deeply_nested_json_is_rejected_not_crashed() -> None:
     nested = b"[" * 100_000 + b"]" * 100_000
     result = parse_export_files({"followers_1.json": nested})
-    assert [i.code for i in result.issues] == ["invalid_json"]
+    assert "invalid_json" in codes(result)
 
 
 def test_unexpected_structure_reports_issue() -> None:
     result = parse_export_files({"following.json": b'{"something_else": []}'})
-    assert [i.code for i in result.issues] == ["unexpected_structure"]
+    assert "unexpected_structure" in codes(result)
     result = parse_export_files({"followers_1.json": b'"just a string"'})
-    assert [i.code for i in result.issues] == ["unexpected_structure"]
+    assert "unexpected_structure" in codes(result)
 
 
 def test_oversized_file_is_skipped_with_issue() -> None:
     result = parse_export_files({"followers_1.json": followers_json("alice")}, max_json_bytes=10)
     assert result.followers == []
-    assert [i.code for i in result.issues] == ["file_too_large"]
+    assert "file_too_large" in codes(result)
 
 
 def test_invalid_entries_are_counted_not_fabricated() -> None:
@@ -187,7 +194,9 @@ def test_empty_lists_parse_cleanly() -> None:
         {"followers_1.json": b"[]", "following.json": b'{"relationships_following": []}'}
     )
     assert result.followers == [] and result.following == []
-    assert result.issues == []
+    # Empty lists are legitimate data: informational only, so the extraction still counts as complete.
+    assert codes(result) == ["empty_list", "empty_list"]
+    assert result.diagnostics.appears_complete is True
 
 
 def test_malicious_usernames_never_become_urls() -> None:
