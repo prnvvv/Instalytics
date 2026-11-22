@@ -5,6 +5,7 @@
  * The uploaded ZIP is never stored. Everything stays in this browser (IndexedDB) until the user deletes it.
  */
 
+import type { Reasons } from '../analytics/unavailable'
 import { buildProfileUrl } from '../instagram/normalize'
 import { PARSER_VERSION, type Account, type CompletenessStatus, type IssueSeverity, type ParseIssueCode } from '../instagram/types'
 
@@ -27,8 +28,23 @@ export type Snapshot = {
   counts: { followers: number; following: number }
   /** Absent on snapshots saved before completeness checks existed. */
   completeness?: StoredCompleteness
+  /** Usernames the user marked as no longer available on Instagram. They stay in the lists below. */
+  unavailable?: string[]
+  /** The reason the user gave for some of the marks above. */
+  unavailableReasons?: Reasons
   followers: StoredAccount[]
   following: StoredAccount[]
+}
+
+/** Counts with the user's unavailable marks applied, so they agree with what the dashboard shows. */
+export const effectiveCounts = (snapshot: Snapshot): { followers: number; following: number } => {
+  const marked = new Set(snapshot.unavailable ?? [])
+
+  if (marked.size === 0) return snapshot.counts
+
+  const live = (stored: StoredAccount[]) => stored.filter(([username]) => !marked.has(username)).length
+
+  return { followers: live(snapshot.followers), following: live(snapshot.following) }
 }
 
 export type SnapshotMeta = Omit<Snapshot, 'followers' | 'following'>
@@ -57,6 +73,8 @@ export const createSnapshot = (input: {
   fileSize: number
   label?: string
   completeness?: StoredCompleteness
+  unavailable?: readonly string[]
+  unavailableReasons?: Reasons
 }): Snapshot => ({
   id: crypto.randomUUID(),
   analyzedAt: input.analyzedAt,
@@ -65,6 +83,10 @@ export const createSnapshot = (input: {
   source: { fileName: input.fileName, fileSize: input.fileSize },
   counts: { followers: input.followers.length, following: input.following.length },
   ...(input.completeness ? { completeness: input.completeness } : {}),
+  ...(input.unavailable && input.unavailable.length > 0 ? { unavailable: [...input.unavailable] } : {}),
+  ...(input.unavailable && input.unavailable.length > 0 && input.unavailableReasons && Object.keys(input.unavailableReasons).length > 0
+    ? { unavailableReasons: { ...input.unavailableReasons } }
+    : {}),
   followers: toStored(input.followers),
   following: toStored(input.following)
 })

@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Link } from 'react-router'
 
 import type { Session } from '@/data/context'
 import { parseReported, reconcile, type ReconcileResult } from '@/lib/analytics/reconcile'
@@ -25,6 +26,7 @@ const ReconcilePanel = ({ session }: { session: Session }) => {
   const followingId = useId()
 
   const { analysis } = session
+  const marks = session.unavailable.length
   const context = {
     notFollowingBack: analysis.notFollowingBackCount,
     fans: analysis.fansCount,
@@ -97,6 +99,24 @@ const ReconcilePanel = ({ session }: { session: Session }) => {
             <Result key={result.kind} result={result} />
           ))}
         </div>
+      )}
+
+      {marks > 0 && (
+        <p className='ix-note' style={{ marginTop: 12 }}>
+          These figures exclude the {marks.toLocaleString('en-US')} {marks === 1 ? 'account' : 'accounts'} you marked as unavailable. The export
+          itself lists {session.baseFollowers.length.toLocaleString('en-US')} followers and {session.baseFollowing.length.toLocaleString('en-US')}{' '}
+          following.
+        </p>
+      )}
+
+      {results.some(result => result.verdict === 'export-has-more') && (
+        <p className='ix-note' style={{ marginTop: 12 }}>
+          To close the gap, open the profile links in{' '}
+          <Link to='/app/lists/not-following-back' style={{ textDecoration: 'underline' }}>
+            Not following back
+          </Link>{' '}
+          and tick the ones that are no longer available. Each tick leaves that account out of every figure here.
+        </p>
       )}
     </section>
   )

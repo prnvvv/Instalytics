@@ -112,6 +112,27 @@ export const CompletenessNotice = ({ session }: { session: Session }) => {
   )
 }
 
+/** Says how many accounts are left out of the figures because the user marked them unavailable. */
+export const MarksNotice = ({ session }: { session: Session }) => {
+  if (session.unavailable.length === 0) return null
+
+  const count = session.unavailable.length
+
+  return (
+    <p className='ix-note' role='status' style={{ marginBottom: 12 }}>
+      <b>{count.toLocaleString('en-US')}</b> {count === 1 ? 'account is' : 'accounts are'} marked as unavailable and left out of every figure.{' '}
+      {session.snapshotId !== null
+        ? 'Your marks are saved with this snapshot, in this browser only.'
+        : session.origin === 'sample'
+          ? 'This is sample data, so nothing is saved.'
+          : 'Marks are kept only while this tab is open; save a snapshot to keep them.'}{' '}
+      <Link to='/app/lists/unavailable' style={{ textDecoration: 'underline' }}>
+        Review them
+      </Link>
+    </p>
+  )
+}
+
 /** Where the numbers on screen come from, so the date and source are never ambiguous. */
 export const SessionContext = ({ session }: { session: Session }) => (
   <>

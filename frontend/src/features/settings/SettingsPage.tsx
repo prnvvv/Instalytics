@@ -34,7 +34,7 @@ const MODE_TEXT = {
 } as const
 
 const SettingsPage = () => {
-  const { session, snapshots, storeAvailable, storageError, settings, updateSettings, deleteAllSnapshots, clearSession } = useAppData()
+  const { session, snapshots, storeAvailable, storageError, settings, updateSettings, deleteAllSnapshots, clearSession, clearUnavailable } = useAppData()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const { status, refresh: checkBackend } = useBackendStatus()
   const [message, setMessage] = useState<string | null>(null)
@@ -49,6 +49,11 @@ const SettingsPage = () => {
     await deleteAllSnapshots()
     setConfirmDelete(false)
     setMessage('All saved snapshots were deleted from this device.')
+  }
+
+  const handleClearMarks = async () => {
+    await clearUnavailable()
+    setMessage('All unavailable marks were cleared; every account counts in the figures again.')
   }
 
   const handleClear = () => {
@@ -114,6 +119,10 @@ const SettingsPage = () => {
                 <dt>Current analysis in memory</dt>
                 <dd>{session ? (session.origin === 'sample' ? 'Sample data' : session.fileName) : 'None'}</dd>
               </div>
+              <div>
+                <dt>Accounts marked unavailable</dt>
+                <dd>{formatCount(session?.unavailable.length ?? 0)}</dd>
+              </div>
             </dl>
 
             {storageError && (
@@ -135,6 +144,9 @@ const SettingsPage = () => {
               </button>
               <button type='button' className='ix-btn' disabled={!session} onClick={handleClear}>
                 Clear current analysis
+              </button>
+              <button type='button' className='ix-btn' disabled={!session || session.unavailable.length === 0} onClick={handleClearMarks}>
+                Clear unavailable marks
               </button>
             </div>
             <p className='ix-note' style={{ marginTop: 10 }}>

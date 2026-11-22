@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Download, ExternalLink, Search } from 'lucide-react'
-import { Fragment, useId, useMemo, useState } from 'react'
+import { Fragment, useId, useMemo, useState, type ReactNode } from 'react'
 
 import { accountColumns, downloadText, toCsv } from '@/lib/csv'
 import { formatCount, formatDate } from '@/lib/format'
@@ -79,6 +79,12 @@ type PropsAccountTable = {
   dateHeader?: string
   /** Show the Status column. Lists that hold a single kind of account hide it as redundant. */
   showStatus?: boolean
+  /** An extra column of per-row controls, for example "mark as unavailable". */
+  rowAction?: { header: string; render: (account: Account) => ReactNode }
+  /** A button acting on the accounts currently shown on the page, for example "mark this page as unavailable". */
+  pageAction?: { label: (count: number) => string; run: (visible: readonly Account[]) => void }
+  /** An extra CSV column. */
+  csvExtra?: { header: string; value: (account: Account) => string }
 }
 
 /** Search, filter, sort, page and export a list of accounts. Rows expand to show account details. */
@@ -91,7 +97,10 @@ const AccountTable = ({
   reference,
   emptyMessage,
   dateHeader = 'Followed',
-  showStatus = true
+  showStatus = true,
+  rowAction,
+  pageAction,
+  csvExtra
 }: PropsAccountTable) => {
   const id = useId()
   const [query, setQuery] = useState('')
@@ -129,6 +138,8 @@ const AccountTable = ({
       header: 'relationship',
       value: a => (relationOf ? (relationOf(a.username) ?? '') : csvRelationship)
     }
+
+    if (csvExtra) columns.push({ header: csvExtra.header, value: csvExtra.value })
 
     const day = reference.toISOString().slice(0, 10)
 
@@ -192,6 +203,12 @@ const AccountTable = ({
           </select>
         </label>
 
+        {pageAction && (
+          <button type='button' className='ix-btn' onClick={() => pageAction.run(visible)} disabled={visible.length === 0}>
+            {pageAction.label(visible.length)}
+          </button>
+        )}
+
         <button type='button' className='ix-btn' onClick={handleExport} disabled={rows.length === 0}>
           <Download aria-hidden size={14} />
           Export CSV ({formatCount(rows.length)})
@@ -214,6 +231,7 @@ const AccountTable = ({
                   </th>
                 )}
                 {relationOf && showStatus && <th scope='col'>Status</th>}
+                {rowAction && <th scope='col'>{rowAction.header}</th>}
               </tr>
             </thead>
             <tbody>
@@ -249,10 +267,11 @@ const AccountTable = ({
                           )}
                         </td>
                       )}
+                      {rowAction && <td>{rowAction.render(account)}</td>}
                     </tr>
                     {expanded && (
                       <tr id={detailId} className='ix-detail'>
-                        <td colSpan={1 + (hasDates ? 1 : 0) + (relationOf && showStatus ? 1 : 0)}>
+                        <td colSpan={1 + (hasDates ? 1 : 0) + (relationOf && showStatus ? 1 : 0) + (rowAction ? 1 : 0)}>
                           <dl>
                             <div>
                               <dt>Profile</dt>

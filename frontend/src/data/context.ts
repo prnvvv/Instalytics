@@ -2,14 +2,23 @@ import { createContext, useContext } from 'react'
 
 import type { RelationshipAnalytics } from '@/lib/analytics/relationships'
 import type { ImportResult } from '@/lib/instagram/importExport'
-import type { CompletenessStatus, ParseDiagnostics, ParseIssue } from '@/lib/instagram/types'
+import type { Reasons, UnavailableReason } from '@/lib/analytics/unavailable'
+import type { Account, CompletenessStatus, ParseDiagnostics, ParseIssue } from '@/lib/instagram/types'
 import type { Snapshot } from '@/lib/storage/snapshots'
 
 export type SessionOrigin = 'import' | 'snapshot' | 'sample'
 
 /** The analysis currently on screen. Held in memory only, unless the user chose to save a snapshot. */
 export type Session = {
+  /** The figures on screen: computed from the full lists with the user's unavailable marks removed. */
   analysis: RelationshipAnalytics
+  /** The complete lists as exported, before any marks are applied. */
+  baseFollowers: Account[]
+  baseFollowing: Account[]
+  /** Usernames the user marked as no longer available on Instagram, sorted. */
+  unavailable: string[]
+  /** The reason the user gave for some of the marks. */
+  reasons: Reasons
   origin: SessionOrigin
   fileName: string
   fileSize: number
@@ -46,6 +55,12 @@ export type AppData = {
   saveCurrent: (label?: string) => Promise<SaveOutcome>
   loadSnapshot: (id: string) => void
   loadSample: () => void
+  /**
+   * Marks (or restores) accounts the user found to be no longer available on Instagram. Saved with the snapshot
+   * when the analysis is a saved one; otherwise kept only while this tab is open.
+   */
+  setUnavailable: (usernames: readonly string[], marked: boolean, reason?: UnavailableReason) => Promise<void>
+  clearUnavailable: () => Promise<void>
   deleteSnapshot: (id: string) => Promise<void>
   deleteAllSnapshots: () => Promise<void>
   clearSession: () => void
