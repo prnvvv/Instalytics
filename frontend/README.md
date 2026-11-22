@@ -17,11 +17,20 @@ npm run build    # typecheck + production build
 
 ```
 src/
+  app/             application shell and routes (/app/*)
+  features/        upload, dashboard, lists, history, settings
+  data/            session, snapshot and preference state
+  lib/             parser, ZIP reader, analytics, storage, CSV (framework-free, unit-tested)
+  components/dots/ dot-matrix numerals and pixel charts
   components/ui/   shadcn-style components (kiln-pixel-heat-hero.tsx is the landing hero)
-  pages/           route-level pages (LandingPage)
-  lib/utils.ts     cn() helper
+  components/landing/ landing page sections
+  pages/           LandingPage
+  styles/app.css   application theme
   test/setup.ts    jsdom mocks for ResizeObserver, matchMedia and canvas
 ```
+
+See `docs/frontend/architecture.md`. Exports are read and analysed in the browser; nothing is uploaded.
+Copy `.env.example` to `.env.local` to point Settings at a backend (optional).
 
 The `@` alias points at `src/` (see `vite.config.ts` and `tsconfig.app.json`).
 
