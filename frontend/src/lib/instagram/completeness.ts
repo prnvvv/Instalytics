@@ -30,17 +30,27 @@ const isRealDate = (iso: string) => {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
 }
 
-/** The date in an instagram-<name>-YYYY-MM-DD-<id> folder name (only the date is read), as YYYY-MM-DD. */
-export const detectExportDate = (paths: Iterable<string>): string | null => {
+const dateIn = (name: string): string | null => {
+  const match = EXPORT_FOLDER_DATE.exec(name)
+
+  return match && isRealDate(match[1]) ? match[1] : null
+}
+
+/**
+ * The date in an instagram-<name>-YYYY-MM-DD-<id> name (only the date is read), as YYYY-MM-DD. Looked for in the
+ * folders of the given paths first, then in `sourceName`: real Instagram ZIPs have no dated wrapper folder, so the
+ * date is only in the archive's own file name.
+ */
+export const detectExportDate = (paths: Iterable<string>, sourceName?: string | null): string | null => {
   for (const path of paths) {
     for (const part of normalizeMemberPath(path).split('/').slice(0, -1)) {
-      const match = EXPORT_FOLDER_DATE.exec(part)
+      const found = dateIn(part)
 
-      if (match && isRealDate(match[1])) return match[1]
+      if (found) return found
     }
   }
 
-  return null
+  return sourceName ? dateIn(normalizeMemberPath(sourceName).split('/').pop()!.replace(/\.zip$/i, '')) : null
 }
 
 /** Numbers absent from the sequence of <kind>_N.json parts (numbering starts at 1). */

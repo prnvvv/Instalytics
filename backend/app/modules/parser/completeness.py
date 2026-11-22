@@ -36,16 +36,30 @@ CORROBORATION_DAYS = 14
 _EXPORT_FOLDER_DATE = re.compile(r"^instagram-.*?-(\d{4}-\d{2}-\d{2})(?:-[^/]*)?$", re.IGNORECASE)
 
 
-def detect_export_date(paths: Iterable[str]) -> date | None:
-    """The date in an ``instagram-<name>-YYYY-MM-DD-<id>`` folder name (only the date is read)."""
+def _date_in(name: str) -> date | None:
+    match = _EXPORT_FOLDER_DATE.match(name)
+    if not match:
+        return None
+    try:
+        return date.fromisoformat(match.group(1))
+    except ValueError:  # not a real calendar date, for example 2026-02-30
+        return None
+
+
+def detect_export_date(paths: Iterable[str], source_name: str | None = None) -> date | None:
+    """The date in an ``instagram-<name>-YYYY-MM-DD-<id>`` name (only the date is read).
+
+    Looked for in the folders of the given paths first, then in ``source_name``: real Instagram
+    ZIPs have no dated wrapper folder, so the date is only in the archive's own file name.
+    """
     for path in paths:
         for part in normalize_member_path(path).split("/")[:-1]:
-            match = _EXPORT_FOLDER_DATE.match(part)
-            if match:
-                try:
-                    return date.fromisoformat(match.group(1))
-                except ValueError:
-                    continue
+            found = _date_in(part)
+            if found:
+                return found
+    if source_name:
+        stem = normalize_member_path(source_name).rsplit("/", 1)[-1]
+        return _date_in(stem.removesuffix(".zip").removesuffix(".ZIP"))
     return None
 
 

@@ -9,8 +9,10 @@ username except the account lists themselves.
 from __future__ import annotations
 
 import json
+import os
 from collections import Counter
 from collections.abc import Iterator, Mapping
+from pathlib import Path
 
 from app.modules.archive.errors import ArchiveError
 from app.modules.archive.limits import ArchiveLimits
@@ -72,9 +74,15 @@ def _totals(
 
 
 def parse_export_files(
-    files: Mapping[str, bytes], *, max_json_bytes: int = DEFAULT_MAX_JSON_BYTES
+    files: Mapping[str, bytes],
+    *,
+    max_json_bytes: int = DEFAULT_MAX_JSON_BYTES,
+    source_name: str | None = None,
 ) -> ParseResult:
     """Parse every followers/following file found in ``files``.
+
+    ``source_name`` (for example ``instagram-<name>-2026-11-22-<id>.zip``) is only used to read the
+    export date when no folder in ``files`` carries it.
 
     Files are found by name anywhere in the mapping. All files of one kind (``followers_1.json``,
     ``followers_2.json``...) are aggregated and de-duplicated. Anything that cannot be read becomes
@@ -208,7 +216,7 @@ def parse_export_files(
 
     issues.extend(_completeness_issues(reports, reports_by_kind, failed_named, totals))
 
-    export_date = detect_export_date(files)
+    export_date = detect_export_date(files, source_name)
     issues.extend(detect_date_range_limit({k: totals[k] for k in _KINDS}, export_date))
     status, appears_complete = status_of(issues)
 
@@ -334,16 +342,27 @@ class _LazyArchiveFiles(Mapping[str, bytes]):
         return len(self._paths)
 
 
-def parse_export_archive(source: ArchiveSource, limits: ArchiveLimits | None = None) -> ParseResult:
+def parse_export_archive(
+    source: ArchiveSource,
+    limits: ArchiveLimits | None = None,
+    *,
+    source_name: str | None = None,
+) -> ParseResult:
     """Validate a ZIP with :class:`SafeZip` and parse the followers/following files inside it.
+
+    ``source_name`` is the archive's file name (taken from ``source`` when that is a path). Real
+    Instagram ZIPs have no dated wrapper folder, so the export date is read from this name.
 
     Raises :class:`ArchiveError` if the archive violates ``limits``. The archive is never
     extracted to disk.
     """
     limits = limits or ArchiveLimits()
+    if source_name is None and isinstance(source, str | os.PathLike):
+        source_name = Path(source).name
     with SafeZip(source, limits) as archive:
-        # Candidate paths include their folders, so the export date in the root folder name is still
-        # found.
+        # Candidate paths include their folders, so a dated root folder name is still found too.
         return parse_export_files(
-            _LazyArchiveFiles(archive, limits.max_json_bytes), max_json_bytes=limits.max_json_bytes
+            _LazyArchiveFiles(archive, limits.max_json_bytes),
+            max_json_bytes=limits.max_json_bytes,
+            source_name=source_name,
         )
