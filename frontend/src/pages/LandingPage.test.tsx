@@ -44,6 +44,17 @@ describe('LandingPage', () => {
     expect(container.querySelector('input, form')).toBeNull()
   })
 
+  it('carries the INYX branding and privacy line', async () => {
+    const user = userEvent.setup()
+
+    render(<LandingPage />)
+    await user.click(screen.getByRole('button', { name: /info\.exe/i }))
+
+    expect(screen.getByText('INYX')).toBeInTheDocument()
+    expect(screen.getByText('No login. No credentials. Just your data.', { selector: '.sr-only' })).toBeInTheDocument()
+    expect(screen.queryByText(/kiln/i)).toBeNull()
+  })
+
   it('does not present invented testimonials or availability claims', () => {
     render(<LandingPage />)
 
