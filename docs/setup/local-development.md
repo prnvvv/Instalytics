@@ -68,12 +68,23 @@ place and a test fails in the other until it is ported.
 
 ## Real exports
 
-To check the parser against a real export, unpack it to `reference/` (git-ignored; never commit it) and run:
+To check the pipelines against a real export, put the unpacked export folder **and ideally the original `.zip`
+beside it** in `reference/` (git-ignored; never commit it). The tests recompute the totals independently from the
+raw JSON and never print or store a username.
 
 ```powershell
 $env:INYX_REFERENCE_DIR = (Resolve-Path reference).Path
-cd backend; .\.venv\Scripts\python -m pytest tests/test_reference_export.py -s
+cd backend;  .\.venv\Scripts\python -m pytest tests/test_reference_export.py -s
+cd ..\frontend; npm test -- src/lib/instagram/reference.test.ts
 ```
+
+To import the real ZIP through the live app in a browser, with the expected figures computed independently:
+
+```powershell
+node scripts\e2e-smoke.mjs --web http://localhost:5173 --zip (Get-ChildItem reference -Filter *.zip).FullName --warning no
+```
+
+Use `--warning yes` for an export you expect to be flagged, or `--warning any` to just report it.
 
 ## Troubleshooting
 
