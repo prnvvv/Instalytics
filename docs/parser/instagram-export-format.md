@@ -123,6 +123,22 @@ parser, with no personal data:
   reporting success. This was the real cause of misleading results: extraction was exact for what the files
   contained, but nothing told the user the files were probably incomplete.
 
+### What the real ZIP looks like
+
+Checked against the original `instagram-<name>-YYYY-MM-DD-<id>.zip` that Instagram produced, not only an
+unpacked copy:
+
+- Paths start directly at `connections/followers_and_following/...`: there is **no dated wrapper folder**. The
+  export date therefore exists only in the ZIP's own file name (and in the folder name when a person unpacks it),
+  so the parser reads the date from the file name as well as from folders (a dated folder wins if both exist).
+  Browsers may add a suffix such as ` (1)`; that is tolerated.
+- Every entry is stored uncompressed (method 0), there are no directory entries, and nothing is encrypted or
+  ZIP64. The archive validator accepts this unchanged.
+- A re-export with the date range set to **All time** produced a follower list several times larger than the
+  "last year" export, with the same earliest date as the following list; the 2026 followers of the earlier file
+  were an identical subset of the later one. The `possible_date_range_limit` warning fired for the truncated
+  export and does not fire for the complete one, which is the intended behaviour.
+
 ## Diagnostics and completeness
 
 `ParseResult.diagnostics` reports, without usernames or contents:
@@ -130,7 +146,8 @@ parser, with no personal data:
 - `files`: every file considered, as `processed`, `ignored` (not follower data) or `failed`, with a note.
 - `followers` / `following` totals: source files, records seen, valid, rejected, duplicates removed, unique
   accounts, how many carry a timestamp, and the earliest and latest date.
-- `exportDate` when the root folder is named `instagram-<name>-YYYY-MM-DD-<id>`.
+- `exportDate` when a folder, or the archive's file name, is `instagram-<name>-YYYY-MM-DD-<id>` (the date must
+  be a real calendar date).
 - `status` (`complete`, `warning`, `incomplete`) and `appearsComplete`, derived from issue severities.
 
 | Severity | Issue codes | Effect |

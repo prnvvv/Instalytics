@@ -1,6 +1,10 @@
 // End-to-end smoke test against RUNNING servers (start them with scripts/dev.ps1 first).
 //
 //   node scripts/e2e-smoke.mjs [--web http://localhost:5173] [--api online|offline|any] [--browser <path>]
+//                              [--zip <real-export.zip> [--warning yes|no|any]]
+//
+// With --zip a real Instagram export is imported instead of the synthetic one, and the expected figures are
+// computed independently from its raw JSON. The real file is only read locally and never printed or sent anywhere.
 //
 // Drives a real Chromium-based browser (Edge by default on Windows, or $BROWSER) over the DevTools protocol, with
 // no extra dependencies. It imports a generated, synthetic ZIP shaped like a "last year" export, and checks:
@@ -39,15 +43,49 @@ const root = 'instagram-e2e-2026-11-22-AbCdEf/connections/followers_and_followin
 const workDir = mkdtempSync(join(tmpdir(), 'inyx-e2e-'))
 const zipPath = join(workDir, 'e2e-export.zip')
 
-writeFileSync(
-  zipPath,
-  zipSync({
-    [`${root}/followers_1.json`]: strToU8(JSON.stringify(followers)),
-    [`${root}/following.json`]: strToU8(JSON.stringify({ relationships_following: following })),
-    [`${root}/recent_follow_requests.json`]: strToU8(JSON.stringify([{ timestamp: 1, media: [], label_values: [{ label: 'Username', value: 'ignored_person' }] }]))
-  })
-)
-// Expected: followers 120, following 300; overlap u0060..u0119 = 60 mutuals, 240 not following back, 60 fans.
+// With --zip <path> a REAL export is used instead: the expected figures are then computed independently from the
+// archive's raw JSON (a naive count, not the app's parser). --warning yes|no|any says whether the app should flag it.
+const realZip = args.zip
+let exp = { followers: 120, following: 300, mutuals: 60, notFollowingBack: 240, fans: 60, warning: 'yes', ignoredFile: true }
+let uploadPath = zipPath
+let realNames = []
+
+if (realZip) {
+  const { unzipSync } = await import(pathToFileURL(join(here, '..', 'frontend', 'node_modules', 'fflate', 'esm', 'browser.js')).href)
+  const { readFileSync } = await import('node:fs')
+  const entries = unzipSync(new Uint8Array(readFileSync(realZip)))
+  const usernames = pattern => {
+    const names = []
+
+    for (const [path, bytes] of Object.entries(entries)) {
+      if (!pattern.test(path.split('/').pop())) continue
+      let data = JSON.parse(new TextDecoder().decode(bytes).replace(/^﻿/, ''))
+
+      if (!Array.isArray(data)) data = Object.values(data).find(Array.isArray)
+      for (const entry of data) for (const item of entry.string_list_data) names.push((/instagram\.com\/(?:_u\/)?([^/?#]+)/.exec(item.href ?? '')?.[1] ?? item.value ?? entry.title).toLowerCase())
+    }
+
+    return new Set(names)
+  }
+  const f = usernames(/^followers(_\d+)?\.json$/i)
+  const g = usernames(/^following(_\d+)?\.json$/i)
+  const mutuals = [...f].filter(n => g.has(n)).length
+
+  exp = { followers: f.size, following: g.size, mutuals, notFollowingBack: g.size - mutuals, fans: f.size - mutuals, warning: args.warning ?? 'any', ignoredFile: false }
+  realNames = [...new Set([...f, ...g])].filter(name => name.length >= 6)
+  uploadPath = realZip
+  console.log(`real export: expecting followers=${exp.followers} following=${exp.following} mutuals=${exp.mutuals} not-following-back=${exp.notFollowingBack} fans=${exp.fans}\n`)
+} else {
+  writeFileSync(
+    zipPath,
+    zipSync({
+      [`${root}/followers_1.json`]: strToU8(JSON.stringify(followers)),
+      [`${root}/following.json`]: strToU8(JSON.stringify({ relationships_following: following })),
+      [`${root}/recent_follow_requests.json`]: strToU8(JSON.stringify([{ timestamp: 1, media: [], label_values: [{ label: 'Username', value: 'ignored_person' }] }]))
+    })
+  )
+}
+// Synthetic expectation: followers 120, following 300; overlap u0060..u0119 = 60 mutuals, 240 not following back, 60 fans.
 
 // --- assertions -------------------------------------------------------------------------------------------------
 const results = []
@@ -143,33 +181,44 @@ try {
   const { result: doc } = await send('DOM.getDocument')
   const { result: input } = await send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: 'input[type=file]' })
 
-  await send('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [zipPath] })
+  await send('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [uploadPath] })
   check('the import preview appears', await waitFor(`document.body.innerText.includes('WHAT WAS DETECTED')`))
 
   const preview = await text()
+  const n = value => value.toLocaleString('en-US')
 
-  check('the preview counts 120 followers and 300 following', /Followers found/.test(preview) && (await evaluate(`!!document.querySelector('[aria-label="120 followers found"]') && !!document.querySelector('[aria-label="300 following found"]')`)))
-  check('the look-alike file is listed as ignored, not counted', /recent_follow_requests\.json/.test(preview) && /ignored/i.test(preview))
-  check('the date-limited export is flagged', /may be limited to a date range/i.test(preview))
-  check('Analyse is blocked until the warning is acknowledged', await evaluate(`[...document.querySelectorAll('button')].find(b => /analyse this export/i.test(b.textContent))?.disabled === true`))
+  check(`the preview counts ${n(exp.followers)} followers and ${n(exp.following)} following`, /Followers found/.test(preview) && (await evaluate(`!!document.querySelector('[aria-label="${n(exp.followers)} followers found"]') && !!document.querySelector('[aria-label="${n(exp.following)} following found"]')`)))
+  if (exp.ignoredFile) check('the look-alike file is listed as ignored, not counted', /recent_follow_requests\.json/.test(preview) && /ignored/i.test(preview))
 
-  // 5. Acknowledge, analyse
+  const flagged = /may be limited to a date range/i.test(preview) || (await evaluate(`!!document.querySelector('label.ix-check input') && /i understand/i.test(document.body.innerText)`))
+
+  if (exp.warning === 'yes') check('the date-limited export is flagged', flagged)
+  else if (exp.warning === 'no') check('the complete export is NOT flagged and needs no acknowledgement', !flagged)
+  else console.log(`INFO  completeness warning shown: ${flagged}`)
+
+  if (flagged) check('Analyse is blocked until the warning is acknowledged', await evaluate(`[...document.querySelectorAll('button')].find(b => /analyse this export/i.test(b.textContent))?.disabled === true`))
+
+  // 5. Acknowledge (only when asked to), analyse
   await evaluate(`[...document.querySelectorAll('label.ix-check')].find(l => /i understand/i.test(l.textContent))?.querySelector('input')?.click()`)
   await clickByText('button', 'analyse this export')
   check('analysis opens the dashboard', await waitFor(`location.pathname === '/app/dashboard' && document.querySelector('h1')?.innerText.includes('NETWORK')`))
 
   const card = label => evaluate(`document.querySelector('[aria-label^="${label}"]')?.getAttribute('aria-label') ?? ''`)
 
-  check('dashboard: 120 followers', /120 followers/.test(await card('Followers:')), await card('Followers:'))
-  check('dashboard: 300 following', /300 following/.test(await card('Following:')), await card('Following:'))
-  check('dashboard: 60 mutuals', /60 mutual/.test(await card('Mutuals:')), await card('Mutuals:'))
-  check('dashboard: 240 not following back', /240 accounts/.test(await card('Not following back:')), await card('Not following back:'))
-  check('dashboard: 60 fans', /60 fans/.test(await card('Fans:')), await card('Fans:'))
-  check('dashboard keeps the completeness warning visible', /These results may not cover everyone/.test(await text()))
+  check(`dashboard: ${n(exp.followers)} followers`, (await card('Followers:')).includes(`${n(exp.followers)} followers`), await card('Followers:'))
+  check(`dashboard: ${n(exp.following)} following`, (await card('Following:')).includes(`${n(exp.following)} following`), await card('Following:'))
+  check(`dashboard: ${n(exp.mutuals)} mutuals`, (await card('Mutuals:')).includes(`${n(exp.mutuals)} mutual`), await card('Mutuals:'))
+  check(`dashboard: ${n(exp.notFollowingBack)} not following back`, (await card('Not following back:')).includes(`${n(exp.notFollowingBack)} accounts`), await card('Not following back:'))
+  check(`dashboard: ${n(exp.fans)} fans`, (await card('Fans:')).includes(`${n(exp.fans)} fans`), await card('Fans:'))
+
+  const notice = /These results may not cover everyone|This export looks incomplete/.test(await text())
+
+  if (exp.warning === 'yes') check('dashboard keeps the completeness warning visible', notice)
+  else if (exp.warning === 'no') check('dashboard shows no completeness warning', !notice)
 
   // 6. A list, and Settings
   await clickByText('a', 'not following back')
-  check('the not-following-back list shows 1-25 of 240', await waitFor(`document.body.innerText.includes('1–25 of 240') || document.body.innerText.includes('1-25 of 240')`))
+  check(`the not-following-back list shows 1-25 of ${n(exp.notFollowingBack)}`, await waitFor(`document.body.innerText.includes('1–25 of ${n(exp.notFollowingBack)}') || document.body.innerText.includes('1-25 of ${n(exp.notFollowingBack)}')`))
 
   await send('Page.navigate', { url: web + '/app/settings' })
   if (apiExpectation === 'online') {
@@ -183,7 +232,7 @@ try {
   check('every API request is a body-less GET to the health endpoint', api.length > 0 || apiExpectation === 'offline')
   check('no API request carries a body or any path other than health', api.every(r => r.method === 'GET' && !r.hasBody && new URL(r.url).pathname === '/api/v1/health/ready'), JSON.stringify(api.slice(0, 3)))
   check('no request leaves the app origin except font stylesheets', requests.filter(r => !r.url.startsWith(web) && !r.url.startsWith('data:') && !r.url.startsWith('blob:') && !/fonts\.(googleapis|gstatic)\.com/.test(r.url)).length === 0, JSON.stringify(requests.filter(r => !r.url.startsWith(web) && !/fonts\./.test(r.url)).slice(0, 3)))
-  check('no username appears in any request URL', !requests.some(r => /u\d{4}/.test(new URL(r.url).pathname + new URL(r.url).search)))
+  check('no username appears in any request URL', !requests.some(r => /u\d{4}/.test(new URL(r.url).pathname + new URL(r.url).search) || realNames.some(name => r.url.toLowerCase().includes(name))))
   check('the browser console stayed free of errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '))
 } finally {
   ws.close()
