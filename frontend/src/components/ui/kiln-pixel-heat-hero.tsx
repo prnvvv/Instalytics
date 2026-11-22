@@ -17,7 +17,7 @@ import { preconnect } from 'react-dom'
 
 const BRAND = {
   // The product name, shown bold at the start of the info window
-  name: 'Instalytics'
+  name: 'INYX'
 }
 
 // Motion's ease-out used by every entrance
@@ -39,7 +39,7 @@ const COPY = {
  * switches to a link's own word while that link in the bottom bar is hovered or focused
  */
 const MARQUEE = {
-  text: 'INSTALYTICS',
+  text: 'INYX',
 
   // How fast the letters travel, squares per second. Higher = quicker crawl
   speed: 8,
@@ -63,8 +63,8 @@ const MARQUEE = {
 const NAV = {
   // The page links, shown as the toggle in the middle of the bottom bar. spell is what the field writes on hover
   links: [
-    { label: 'Index', href: '#home', spell: 'INSTALYTICS' },
-    { label: 'How it works', href: '#how-it-works', spell: 'EXPORT' },
+    { label: 'Index', href: '#home', spell: 'INYX' },
+    { label: 'How it works', href: '#how-it-works', spell: 'DECODE' },
     { label: 'Privacy', href: '#privacy', spell: 'PRIVATE' }
   ],
 
@@ -80,7 +80,7 @@ const NAV = {
  * word crawling through the field, and a line of dot-matrix text crawls past
  */
 const STATUS = {
-  message: 'No Instagram login - just your own data export',
+  message: 'No login. No credentials. Just your data.',
 
   // Seconds for one lap of the crawl. Higher = slower
   lap: 9
@@ -90,27 +90,27 @@ const STATUS = {
  * The card beside the headline, from 1024px up: one topic open at a time, stepping on by itself
  */
 const INSIGHTS = {
-  label: 'What you see',
+  label: 'Connection insights',
   status: 'Privacy-first',
   items: [
     {
       name: 'Followers',
-      line: 'Everyone who follows you, searchable, with a direct link to each profile.',
+      line: 'Everyone who follows you, searchable and one tap from their profile.',
       href: '#how-it-works'
     },
     {
       name: 'Following',
-      line: 'Every account you follow, in one clean and filterable list.',
+      line: 'Every account you follow, sorted and filterable in one place.',
       href: '#how-it-works'
     },
-    { name: 'Mutuals', line: 'The accounts that follow you back, nothing more.', href: '#how-it-works' },
+    { name: 'Mutuals', line: 'The connections that follow you back, and nothing more.', href: '#how-it-works' },
     {
       name: 'One-sided',
-      line: 'Who you follow that does not follow back, and who follows you that you do not.',
+      line: 'Who you follow that does not follow back, and the other way round.',
       href: '#how-it-works'
     }
   ],
-  footer: { note: 'No login needed', link: { label: 'How it works', href: '#how-it-works' } },
+  footer: { note: 'No credentials, ever', link: { label: 'How it works', href: '#how-it-works' } },
 
   // Seconds each topic stays open before the next. Hovering or focusing the card holds it
   hold: 3.6,
@@ -126,7 +126,7 @@ const INFO = {
 
   // Follows the bold product name inside the window
   statement:
-    'is a privacy-first Instagram analytics tool. Upload the official data export you download yourself and see who follows you back, who does not, and more. We never ask for your Instagram login.',
+    'is Instagram analytics, decoded. Follower insights and connection analysis from the data export you download yourself. No login. No credentials. Just your data.',
 
   // Widest the window opens, px. On phones it takes the row's full width instead
   width: 420
@@ -134,11 +134,11 @@ const INFO = {
 
 const STEPS = {
   label: 'How it works',
-  intro: 'Three steps, and no Instagram login.',
+  intro: 'Three steps from export to insight. No login.',
   items: [
     { title: 'Request your export', detail: 'From Instagram, in JSON format', href: '#how-it-works' },
-    { title: 'Upload the ZIP', detail: 'Validated before it is read', href: '#how-it-works' },
-    { title: 'Explore your network', detail: 'Followers, following, mutuals', href: '#how-it-works' }
+    { title: 'Upload the ZIP', detail: 'Checked before it is read', href: '#how-it-works' },
+    { title: 'Decode your network', detail: 'Followers, following, mutuals', href: '#how-it-works' }
   ],
 
   // How wide the window opens, px
@@ -1358,11 +1358,11 @@ const HeroCopy = ({ copyRef }: { copyRef: RefObject<HTMLDivElement | null> }) =>
   )
 }
 
-// A pixel "k" on a 5 × 5 grid, its kick ending in one hot square that takes the accent colour
+// A pixel "I" on a 5 × 5 grid, its foot ending in one hot square that takes the accent colour
 const KilnPixelMark = (props: SVGProps<SVGSVGElement>) => {
   return (
     <svg viewBox='0 0 5 5' fill='currentColor' shapeRendering='crispEdges' aria-hidden {...props}>
-      <path d='M0 0h1v5H0zM1 2h1v1H1zM2 1h1v1H2zM3 0h1v1H3zM2 3h1v1H2z' />
+      <path d='M0 0h5v1H0zM2 1h1v3H2zM0 4h3v1H0z' />
       <path d='M3 4h2v1H3z' fill='var(--kln-mark-hot, currentColor)' />
     </svg>
   )
