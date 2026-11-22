@@ -70,6 +70,9 @@ export const buildProfileUrl = (username: string) => {
   return `https://www.instagram.com/${username}/`
 }
 
+/** Only exact Instagram profile links are ever rendered as links. */
+export const isSafeProfileUrl = (url: string) => /^https:\/\/www\.instagram\.com\/[a-z0-9._]{1,30}\/$/.test(url)
+
 /** Unix seconds when plausible, else null. Missing or implausible values are never guessed. */
 export const parseTimestamp = (raw: unknown): number | null => {
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return null
