@@ -1499,7 +1499,7 @@ type PropsInfoWindow = {
   width: number
 }
 
-// The product's window: what Instalytics is, in one short statement
+// The product's window: what INYX is, in one short statement
 const InfoWindow = ({ open, onToggle, width }: PropsInfoWindow) => {
   return (
     <NavWindow
