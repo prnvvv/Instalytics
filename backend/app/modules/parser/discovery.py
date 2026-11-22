@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.modules.archive.paths import is_metadata_path, normalize_member_path
 from app.modules.parser.models import ConnectionKind
 
 FOLLOW_DIRECTORY = "followers_and_following"
@@ -24,19 +25,9 @@ WRAPPER_KEYS: dict[str, ConnectionKind] = {
 }
 
 
-def normalize_member_path(path: str) -> str:
-    return path.replace("\\", "/").lstrip("/")
-
-
 def _split(path: str) -> tuple[list[str], str]:
     parts = normalize_member_path(path).split("/")
     return [p.lower() for p in parts[:-1]], parts[-1].lower()
-
-
-def is_ignorable(path: str) -> bool:
-    """macOS archive metadata and AppleDouble files are never export data."""
-    directories, name = _split(path)
-    return "__macosx" in directories or name.startswith("._")
 
 
 def kind_from_filename(path: str) -> ConnectionKind | None:
@@ -50,7 +41,7 @@ def kind_from_filename(path: str) -> ConnectionKind | None:
 
 def is_candidate_path(path: str) -> bool:
     """Whether the archive member should be read and considered by the parser."""
-    if is_ignorable(path):
+    if is_metadata_path(path):
         return False
     directories, name = _split(path)
     if not name.endswith(".json"):
