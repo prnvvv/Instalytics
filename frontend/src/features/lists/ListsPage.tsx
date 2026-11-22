@@ -1,4 +1,4 @@
-import { Undo2 } from 'lucide-react'
+﻿import { Undo2 } from 'lucide-react'
 import { useMemo, useState, type CSSProperties } from 'react'
 import { Navigate, NavLink, useParams } from 'react-router'
 
@@ -13,7 +13,7 @@ import { summarizeKind } from '@/lib/analytics/categories'
 import { accountsOfKind, type Relationship, type RelationshipKind } from '@/lib/analytics/relationships'
 import { REASONS, REASON_LABEL, isReason, unavailableAccounts, type UnavailableReason } from '@/lib/analytics/unavailable'
 import { formatCount, formatDate, formatPercent } from '@/lib/format'
-import { KIND_COLOR } from '@/lib/palette'
+import { KIND_COLOR, PEAK_COLOR } from '@/lib/palette'
 
 import AccountBrowser from './AccountBrowser'
 
@@ -153,7 +153,7 @@ const KindRail = ({ config, session, accounts }: PropsRail) => {
         </div>
         <div className='ix-tile-body' style={{ marginTop: 10 }}>
           {columns ? (
-            <DotColumns columns={columns} color={color} peakColor='#f6d08a' fill label={`${config.chartTitle} by ${mode === 'months' ? 'month' : 'year'}`} />
+            <DotColumns columns={columns} color={color} peakColor={PEAK_COLOR} fill label={`${config.chartTitle} by ${mode === 'months' ? 'month' : 'year'}`} />
           ) : (
             <p className='ix-note'>This export has no dates for these accounts, so there is nothing to chart.</p>
           )}

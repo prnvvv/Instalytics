@@ -12,7 +12,7 @@ import { monthlyActivity, timestampCoverage } from '@/lib/analytics/activity'
 import { buildInsights } from '@/lib/analytics/insights'
 import type { RelationshipAnalytics } from '@/lib/analytics/relationships'
 import { formatCount, formatPercent, formatRatio } from '@/lib/format'
-import { KIND_COLOR } from '@/lib/palette'
+import { KIND_COLOR, PEAK_COLOR } from '@/lib/palette'
 import { effectiveCounts } from '@/lib/storage/snapshots'
 
 import ImportDetails from './ImportDetails'
@@ -248,9 +248,9 @@ const ActivityTile = ({ analysis }: { analysis: RelationshipAnalytics }) => {
 
       <div className='ix-tile-body' style={{ marginTop: 10 }}>
         {view === 'snapshots' && hasTrend ? (
-          <DotColumns columns={trend} color={color} peakColor={COLOR.mutuals} fill domain={[Math.max(0, min - pad), max]} label={`${which} count at each saved snapshot`} />
+          <DotColumns columns={trend} color={color} peakColor={PEAK_COLOR} fill domain={[Math.max(0, min - pad), max]} label={`${which} count at each saved snapshot`} />
         ) : columns ? (
-          <DotColumns columns={columns} color={color} peakColor={COLOR.mutuals} fill label={`Accounts per month, last 12 months of ${which}`} />
+          <DotColumns columns={columns} color={color} peakColor={PEAK_COLOR} fill label={`Accounts per month, last 12 months of ${which}`} />
         ) : (
           <p className='ix-note'>This export has no follow dates for {which}, so no activity is shown.</p>
         )}
