@@ -10,6 +10,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
+from app.modules.parser.completeness import detect_export_date
 from app.modules.parser.discovery import kind_from_filename, part_number
 from app.modules.parser.models import ConnectionKind
 from app.modules.parser.service import parse_export_archive, parse_export_files
@@ -692,6 +693,21 @@ def test_following_older_but_followers_not_window_shaped_is_not_flagged() -> Non
     )
 
     assert "possible_date_range_limit" not in codes(result)
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("instagram-someone-2026-11-22-AbCdEf/connections/x.json", date(2026, 11, 22)),
+        ("Instagram-Some_One.99-2026-01-05/a/b.json", date(2026, 1, 5)),
+        ("instagram-x-2026-02-30-abc/a.json", None),  # not a real calendar date
+        ("connections/followers_and_following/x.json", None),
+        ("my-export-2026-11-22/x.json", None),
+    ],
+)
+def test_export_date_is_read_from_the_root_folder_name(path: str, expected: date | None) -> None:
+    # The frontend runs the same cases (completeness.test.ts); both must agree.
+    assert detect_export_date([path]) == expected
 
 
 # -- diagnostics never leak usernames ---------------------------------------------------------------
