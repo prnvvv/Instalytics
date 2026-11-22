@@ -9,9 +9,21 @@ React 19, TypeScript, Vite, Tailwind v4 (landing page) and a small dedicated sty
 no network call anywhere on that path, and the backend never receives Instagram data. This is a deliberate
 choice for this build (CLAUDE.md 5.2: local-first), not a limitation to be worked around.
 
-The existing backend is reached only through `src/lib/api/client.ts` for `GET /api/v1/health/ready`, shown in
-Settings when `VITE_API_URL` is set. The backend's `POST /api/v1/analytics/relationships` is intentionally not
-used: it would send follower and following usernames to a server.
+The backend is reached only through `src/lib/api/client.ts` for `GET /api/v1/health/ready`. It drives the status
+chip in the app header and the Backend card in Settings (online, degraded, offline), in development through the
+Vite proxy and otherwise through `VITE_API_URL`; see `docs/setup/local-development.md`. The backend's
+`POST /api/v1/analytics/relationships` is intentionally not used: it would send follower and following
+usernames to a server. A test (`src/app/backend.test.tsx`) and the end-to-end script
+(`scripts/e2e-smoke.mjs`) both assert that the only network calls are body-less health checks.
+
+## One set of rules on both sides
+
+`lib/instagram` and `lib/analytics` are a TypeScript port of the backend's parser, completeness diagnostics and
+relationship analytics. `docs/parser/parity-cases.json` is a shared set of hand-written synthetic cases that the
+backend (pytest) and the frontend (vitest) both run, so a rule changed on one side fails a test on the other
+until it is ported. The import preview shows the same diagnostics the backend produces (files found, per-list
+totals, missing parts, rejected records, a possible date-range limit) and asks for an acknowledgement before
+analysing an export that looks incomplete; saved snapshots keep their warning.
 
 ## Layers
 
