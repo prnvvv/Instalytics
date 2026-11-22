@@ -1,6 +1,11 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
-import { afterEach, vi } from 'vitest'
+import { afterEach, beforeEach, vi } from 'vitest'
+
+// No test may reach a real network. The default backend is "offline"; tests that need it up stub fetch themselves.
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('network is disabled in tests'))))
+})
 
 afterEach(() => {
   cleanup()

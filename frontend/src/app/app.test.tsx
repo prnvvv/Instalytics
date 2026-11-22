@@ -489,13 +489,13 @@ describe('settings', () => {
     expect(await screen.findByText(/all saved snapshots were deleted/i)).toBeInTheDocument()
   })
 
-  it('persists preferences locally and reports the backend as not configured', async () => {
+  it('persists preferences locally and reports an unreachable backend without breaking', async () => {
     const user = userEvent.setup()
 
     renderApp('/app/settings')
     await user.selectOptions(await screen.findByRole('combobox'), '50')
     expect(JSON.parse(localStorage.getItem('inyx.settings')!)).toMatchObject({ rowsPerPage: 50 })
-    expect(await screen.findByText(/not configured\. inyx works fully without it/i)).toBeInTheDocument()
+    expect(await screen.findByText(/not reachable\. inyx still works without it/i)).toBeInTheDocument()
   })
 
   it('works without storage and says so', async () => {

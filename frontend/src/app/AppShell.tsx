@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet } from 'react-router'
 import { preconnect } from 'react-dom'
 
 import { DataProvider } from '@/data/DataProvider'
+import { useBackendStatus } from '@/data/useBackendStatus'
 import type { SnapshotStore } from '@/lib/storage/snapshots'
 
 import '@/styles/app.css'
@@ -22,6 +23,28 @@ const AppFonts = () => {
   preconnect('https://fonts.gstatic.com', { crossOrigin: 'anonymous' })
 
   return <link rel='stylesheet' href={FONTS_URL} precedence='default' />
+}
+
+const API_CHIP = {
+  online: { label: 'API online', dot: 'ix-dot-ok', hint: 'The INYX backend is reachable and ready.' },
+  degraded: { label: 'API degraded', dot: 'ix-dot-warn', hint: 'The INYX backend is reachable, but a dependency is unavailable.' },
+  offline: { label: 'API offline', dot: 'ix-dot-off', hint: 'The backend is not reachable. The app still works: analysis runs in your browser.' }
+} as const
+
+/** The backend's health. Only a health check is ever sent: no Instagram data goes to the backend. */
+const ApiStatus = () => {
+  const { status } = useBackendStatus()
+
+  if (status === null || status.state === 'not_configured') return null
+
+  const chip = API_CHIP[status.state]
+
+  return (
+    <span className='ix-chip' role='status' title={`${chip.hint} Health check only; no Instagram data is sent.`}>
+      <span aria-hidden className={chip.dot} />
+      {chip.label}
+    </span>
+  )
 }
 
 type PropsAppShell = {
@@ -53,6 +76,7 @@ const AppShell = ({ store }: PropsAppShell) => {
               <span aria-hidden className='ix-dot-ok' />
               Runs in your browser
             </span>
+            <ApiStatus />
             <Link to='/app/import' className='ix-btn ix-btn-dark'>
               Import
             </Link>
