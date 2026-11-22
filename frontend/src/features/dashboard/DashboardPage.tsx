@@ -13,6 +13,7 @@ import type { RelationshipAnalytics } from '@/lib/analytics/relationships'
 import { formatCount, formatPercent, formatRatio } from '@/lib/format'
 import type { Snapshot } from '@/lib/storage/snapshots'
 
+import ReconcilePanel from './ReconcilePanel'
 import StatCard from './StatCard'
 
 // The landing page's heat ramp, one colour per kind of account.
@@ -383,6 +384,7 @@ const DashboardPage = () => {
       <div className='ix-grid' style={{ marginTop: 12 }}>
         <ActivityCard analysis={analysis} />
         <InsightsCard analysis={analysis} />
+        {session.origin !== 'sample' && <ReconcilePanel session={session} />}
         {snapshots.length >= 2 && <TrendCard snapshots={snapshots} />}
       </div>
     </>
