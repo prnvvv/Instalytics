@@ -184,6 +184,28 @@ describe('marking accounts as unavailable', () => {
     expect(Object.keys((await store.list())[0].unavailableReasons ?? {})).toHaveLength(24)
   })
 
+  it('gives each row a safe Open link and brief details when expanded', async () => {
+    const user = userEvent.setup()
+
+    renderApp()
+    await importExport(user)
+    await user.click(card(/Not following back: 60 accounts/))
+    await screen.findByRole('heading', { level: 1, name: 'Not following back' })
+
+    const [open] = screen.getAllByRole('link', { name: /^Open .* on Instagram \(new tab\)$/ })
+
+    expect(open).toHaveAttribute('href', expect.stringMatching(/^https:\/\/www\.instagram\.com\/g\d+\/?$/))
+    expect(open).toHaveAttribute('target', '_blank')
+    expect(open).toHaveAttribute('rel', 'noopener noreferrer')
+
+    await user.click(screen.getAllByRole('button', { name: /^g\d+$/ })[0])
+
+    expect(screen.getByText('You follow them')).toBeInTheDocument()
+    expect(screen.getByText(/^Yes, since /)).toBeInTheDocument()
+    expect(screen.getByText('They follow you')).toBeInTheDocument()
+    expect(screen.getByText('No')).toBeInTheDocument()
+  })
+
   it('records no reason unless one is chosen', async () => {
     const user = userEvent.setup()
     const { store } = renderApp()

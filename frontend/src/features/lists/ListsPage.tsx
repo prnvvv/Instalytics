@@ -5,7 +5,7 @@ import { CompletenessNotice, MarksNotice, NoDataState, PageHead, SessionContext 
 import { useAppData } from '@/data/context'
 import { accountsOfKind, type Relationship, type RelationshipKind } from '@/lib/analytics/relationships'
 import { REASONS, REASON_LABEL, isReason, unavailableAccounts, type UnavailableReason } from '@/lib/analytics/unavailable'
-import { formatCount } from '@/lib/format'
+import { formatCount, formatDate } from '@/lib/format'
 
 import AccountTable from './AccountTable'
 
@@ -75,6 +75,17 @@ const ListsPage = () => {
   }, [session])
 
   const marked = useMemo(() => new Set(session?.unavailable ?? []), [session])
+
+  // When each account started following you, and when you started following it, from the complete lists.
+  const since = useMemo(() => {
+    const followers = new Map<string, number | null>()
+    const following = new Map<string, number | null>()
+
+    for (const a of session?.baseFollowers ?? []) followers.set(a.username, a.followedAt)
+    for (const a of session?.baseFollowing ?? []) following.set(a.username, a.followedAt)
+
+    return { followers, following }
+  }, [session])
 
   if (!active) return <Navigate to='/app/lists/not-following-back' replace />
 
@@ -151,6 +162,20 @@ const ListsPage = () => {
           reference={new Date(session.analyzedAt)}
           dateHeader={active.dateHeader}
           emptyMessage={isUnavailableTab ? 'No accounts are marked as unavailable.' : 'No accounts in this list for this export.'}
+          detailsOf={account => {
+            const theyFollow = since.followers.has(account.username)
+            const youFollow = since.following.has(account.username)
+            const day = (t: number | null | undefined) => (t ? formatDate(t) : 'date not in export')
+            const reason = session.reasons[account.username]
+
+            return [
+              { label: 'You follow them', value: youFollow ? `Yes, since ${day(since.following.get(account.username))}` : 'No' },
+              { label: 'They follow you', value: theyFollow ? `Yes, since ${day(since.followers.get(account.username))}` : 'No' },
+              ...(marked.has(account.username)
+                ? [{ label: 'Marked unavailable', value: reason ? REASON_LABEL[reason] : 'Yes, no reason given' }]
+                : [])
+            ]
+          }}
           csvExtra={isUnavailableTab ? { header: 'reason', value: a => (session.reasons[a.username] ? REASON_LABEL[session.reasons[a.username]] : '') } : undefined}
           pageAction={
             isUnavailableTab

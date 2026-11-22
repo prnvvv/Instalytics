@@ -83,6 +83,8 @@ type PropsAccountTable = {
   rowAction?: { header: string; render: (account: Account) => ReactNode }
   /** A button acting on the accounts currently shown on the page, for example "mark this page as unavailable". */
   pageAction?: { label: (count: number) => string; run: (visible: readonly Account[]) => void }
+  /** Extra facts about an account, shown in its expanded details. */
+  detailsOf?: (account: Account) => { label: string; value: string }[]
   /** An extra CSV column. */
   csvExtra?: { header: string; value: (account: Account) => string }
 }
@@ -100,6 +102,7 @@ const AccountTable = ({
   showStatus = true,
   rowAction,
   pageAction,
+  detailsOf,
   csvExtra
 }: PropsAccountTable) => {
   const id = useId()
@@ -255,6 +258,18 @@ const AccountTable = ({
                           <i aria-hidden className='ix-user-sq' style={{ background: relation ? RELATIONSHIP_COLOR[relation] : '#8593ea' }} />
                           {account.username}
                         </button>
+                        {safe && (
+                          <a
+                            className='ix-btn ix-btn-sm'
+                            style={{ marginLeft: 8 }}
+                            href={account.profileUrl}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            aria-label={`Open ${account.username} on Instagram (new tab)`}
+                          >
+                            Open <ExternalLink aria-hidden size={12} />
+                          </a>
+                        )}
                       </td>
                       {hasDates && <td className='ix-hide-sm'>{formatDate(account.followedAt)}</td>}
                       {relationOf && showStatus && (
@@ -285,10 +300,19 @@ const AccountTable = ({
                                 )}
                               </dd>
                             </div>
-                            <div>
-                              <dt>{dateHeader}</dt>
-                              <dd>{formatDate(account.followedAt)}</dd>
-                            </div>
+                            {detailsOf ? (
+                              detailsOf(account).map(item => (
+                                <div key={item.label}>
+                                  <dt>{item.label}</dt>
+                                  <dd>{item.value}</dd>
+                                </div>
+                              ))
+                            ) : (
+                              <div>
+                                <dt>{dateHeader}</dt>
+                                <dd>{formatDate(account.followedAt)}</dd>
+                              </div>
+                            )}
                             {relation && (
                               <div>
                                 <dt>Relationship</dt>
