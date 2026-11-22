@@ -710,6 +710,62 @@ def test_export_date_is_read_from_the_root_folder_name(path: str, expected: date
     assert detect_export_date([path]) == expected
 
 
+@pytest.mark.parametrize(
+    ("paths", "name", "expected"),
+    [
+        ([], "instagram-someone-2026-11-22-AbCdEf.zip", date(2026, 11, 22)),
+        ([], "INSTAGRAM-Some_One-2026-01-05-xyz.ZIP", date(2026, 1, 5)),
+        ([], "instagram-someone-2026-11-22-AbCdEf (1).zip", date(2026, 11, 22)),
+        (
+            [],
+            "C:\\Users\\me\\Downloads\\instagram-someone-2026-11-22-AbCdEf.zip",
+            date(2026, 11, 22),
+        ),
+        ([], "instagram-someone-2026-02-30-abc.zip", None),
+        ([], "my-export.zip", None),
+        ([], "followers.zip", None),
+        # A dated folder inside the archive wins over the file name.
+        (["instagram-a-2026-03-01-x/c/f.json"], "instagram-b-2026-11-22-y.zip", date(2026, 3, 1)),
+        # ... and the name is used when the folders have no date.
+        (
+            ["connections/followers_and_following/f.json"],
+            "instagram-b-2026-11-22-y.zip",
+            date(2026, 11, 22),
+        ),
+    ],
+)
+def test_export_date_falls_back_to_the_archive_file_name(
+    paths: list[str], name: str, expected: date | None
+) -> None:
+    assert detect_export_date(paths, name) == expected
+
+
+def test_a_real_shaped_zip_has_no_wrapper_folder_so_the_name_supplies_the_date(tmp_path) -> None:
+    # Real Instagram ZIPs start at connections/... with no dated root folder.
+    archive = tmp_path / "instagram-someone-2026-11-22-AbCdEf.zip"
+    archive.write_bytes(
+        make_zip(
+            {
+                "connections/followers_and_following/followers_1.json": dated_followers(
+                    120, epoch(2025, 11, 27), 2.8
+                ),
+                "connections/followers_and_following/following.json": dated_following(
+                    300, epoch(2022, 6, 7), 5
+                ),
+            }
+        )
+    )
+    result = parse_export_archive(archive)
+
+    assert result.diagnostics.export_date == date(2026, 11, 22)
+    assert "possible_date_range_limit" in codes(result)
+    # Bytes have no name; an explicit name works the same way.
+    explicit = parse_export_archive(archive.read_bytes(), source_name=archive.name)
+
+    assert explicit.diagnostics.export_date == date(2026, 11, 22)
+    assert parse_export_archive(archive.read_bytes()).diagnostics.export_date is None
+
+
 # -- diagnostics never leak usernames ---------------------------------------------------------------
 
 

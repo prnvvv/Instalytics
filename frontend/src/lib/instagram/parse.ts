@@ -55,6 +55,8 @@ const decode = (content: Uint8Array | string) =>
 
 export type ParseOptions = {
   maxJsonBytes?: number
+  /** The archive's file name; used only to read the export date when no folder carries it. */
+  sourceName?: string
   /** Candidate files the archive reader skipped for exceeding the size limit. */
   oversized?: readonly string[]
 }
@@ -67,7 +69,7 @@ export const parseExportFiles = (
   files: ReadonlyMap<string, Uint8Array | string> | Record<string, Uint8Array | string>,
   options: ParseOptions | number = {}
 ): ParsedExport => {
-  const { maxJsonBytes = DEFAULT_MAX_JSON_BYTES, oversized = [] } =
+  const { maxJsonBytes = DEFAULT_MAX_JSON_BYTES, oversized = [], sourceName } =
     typeof options === 'number' ? { maxJsonBytes: options } : options
   const entries = (files instanceof Map ? [...files.entries()] : Object.entries(files)).sort(([a], [b]) =>
     a < b ? -1 : a > b ? 1 : 0
@@ -180,7 +182,10 @@ export const parseExportFiles = (
 
   issues.push(...completenessIssues(reports, byKind, failedNamed, totals))
 
-  const exportDate = detectExportDate(entries.map(([path]) => path))
+  const exportDate = detectExportDate(
+    entries.map(([path]) => path),
+    sourceName
+  )
 
   issues.push(...detectDateRangeLimit(totals, exportDate))
 

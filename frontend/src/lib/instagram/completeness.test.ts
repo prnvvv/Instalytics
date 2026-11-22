@@ -32,6 +32,37 @@ describe('detectExportDate', () => {
   })
 })
 
+describe('detectExportDate from the archive file name', () => {
+  it.each([
+    [[], 'instagram-someone-2026-11-22-AbCdEf.zip', '2026-11-22'],
+    [[], 'INSTAGRAM-Some_One-2026-01-05-xyz.ZIP', '2026-01-05'],
+    [[], 'instagram-someone-2026-11-22-AbCdEf (1).zip', '2026-11-22'],
+    [[], 'C:\\Users\\me\\Downloads\\instagram-someone-2026-11-22-AbCdEf.zip', '2026-11-22'],
+    [[], 'instagram-someone-2026-02-30-abc.zip', null],
+    [[], 'my-export.zip', null],
+    [[], 'followers.zip', null],
+    [['instagram-a-2026-03-01-x/c/f.json'], 'instagram-b-2026-11-22-y.zip', '2026-03-01'],
+    [['connections/followers_and_following/f.json'], 'instagram-b-2026-11-22-y.zip', '2026-11-22']
+  ] as [string[], string, string | null][])('%j + %s', (paths, name, expected) => {
+    expect(detectExportDate(paths, name)).toBe(expected)
+  })
+
+  it('reads the date from a real-shaped ZIP that has no wrapper folder', async () => {
+    const { importExportFile } = await import('./importExport')
+    const { makeZip } = await import('../test-helpers')
+    const bytes = makeZip({
+      'connections/followers_and_following/followers_1.json': dated('followers', 120, epoch(2025, 11, 27), 2.8),
+      'connections/followers_and_following/following.json': dated('following', 300, epoch(2022, 6, 7), 5)
+    })
+    const named = await importExportFile(new File([bytes as BlobPart], 'instagram-someone-2026-11-22-AbCdEf.zip'))
+    const plain = await importExportFile(new File([bytes as BlobPart], 'export.zip'))
+
+    expect(named.parsed.diagnostics.exportDate).toBe('2026-11-22')
+    expect(named.parsed.issues.map(i => i.code)).toContain('possible_date_range_limit')
+    expect(plain.parsed.diagnostics.exportDate).toBeNull()
+  })
+})
+
 describe('the date-range heuristic', () => {
   it('flags followers cut to the last year while following goes back years', () => {
     const result = parseExportFiles({

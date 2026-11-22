@@ -94,7 +94,9 @@ export const importExportFile = async (
 
   const parsed = parseExportFiles(contents.files, {
     maxJsonBytes: limits.maxJsonBytes,
-    oversized: contents.oversized
+    oversized: contents.oversized,
+    // A real Instagram ZIP has no dated wrapper folder; its file name carries the export date.
+    sourceName: file.name
   })
 
   // An archive with no JSON connection files but HTML ones is a recognisable, unsupported layout.
