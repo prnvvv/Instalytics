@@ -7,7 +7,7 @@ import { AppRoutes } from '@/app/AppRoutes'
 import { buildProfileUrl } from '@/lib/instagram/normalize'
 import type { Account } from '@/lib/instagram/types'
 import { createSnapshot, MemorySnapshotStore } from '@/lib/storage/snapshots'
-import { followersJson, followingJson, zipFile } from '@/lib/test-helpers'
+import { followersEntry, followersJson, followingEntry, followingJson, zipFile } from '@/lib/test-helpers'
 
 const renderApp = (path = '/app', store: MemorySnapshotStore | null = new MemorySnapshotStore()) => {
   render(
@@ -128,8 +128,80 @@ describe('import flow', () => {
     renderApp('/app/import')
     await uploadFile(user, zipFile({ 'followers_1.json': followersJson('alice') }))
 
-    expect(await screen.findByText('This export is incomplete')).toBeInTheDocument()
+    expect(await screen.findByText('No following file')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /analyse this export/i })).toBeDisabled()
+  })
+
+  it('warns about a date-limited export and requires an acknowledgement before analysing', async () => {
+    const user = userEvent.setup()
+    const root = 'instagram-someone-2026-11-22-AbCdEf/connections/followers_and_following'
+    const day = 86_400
+    const exportTs = Date.UTC(2026, 10, 22) / 1000
+
+    // Followers start ~360 days before the export while following reaches back ~4 years: a "last year" export.
+    const followers = Array.from({ length: 60 }, (_, i) => followersEntry(`fan${i}`, exportTs - (360 - i * 4) * day))
+    const following = Array.from({ length: 80 }, (_, i) => followingEntry(`fol${i}`, exportTs - (1600 - i * 15) * day))
+
+    renderApp('/app/import')
+    await uploadFile(
+      user,
+      zipFile({
+        [`${root}/followers_1.json`]: JSON.stringify(followers),
+        [`${root}/following.json`]: JSON.stringify({ relationships_following: following })
+      })
+    )
+
+    expect(await screen.findByText('This export may be limited to a date range')).toBeInTheDocument()
+
+    const analyse = screen.getByRole('button', { name: /analyse this export/i })
+
+    expect(analyse).toBeDisabled()
+    await user.click(screen.getByRole('checkbox', { name: /i understand these results may not include everyone/i }))
+    expect(analyse).toBeEnabled()
+    await user.click(analyse)
+
+    expect(await screen.findByRole('heading', { level: 1, name: /your network/i })).toBeInTheDocument()
+    expect(screen.getByText('These results may not cover everyone')).toBeInTheDocument()
+    expect(screen.getByText(/only reaches back about 36\d days/i)).toBeInTheDocument()
+  })
+
+  it('keeps the warning on a saved snapshot', async () => {
+    const user = userEvent.setup()
+    const root = 'instagram-someone-2026-11-22-AbCdEf/connections/followers_and_following'
+    const day = 86_400
+    const exportTs = Date.UTC(2026, 10, 22) / 1000
+    const followers = Array.from({ length: 60 }, (_, i) => followersEntry(`fan${i}`, exportTs - (360 - i * 4) * day))
+    const following = Array.from({ length: 80 }, (_, i) => followingEntry(`fol${i}`, exportTs - (1600 - i * 15) * day))
+    const store = renderApp('/app/import')
+
+    await uploadFile(
+      user,
+      zipFile({
+        [`${root}/followers_1.json`]: JSON.stringify(followers),
+        [`${root}/following.json`]: JSON.stringify({ relationships_following: following })
+      })
+    )
+    await user.click(await screen.findByRole('checkbox', { name: /i understand/i }))
+    await user.click(screen.getByRole('checkbox', { name: /save a snapshot on this device/i }))
+    await user.click(screen.getByRole('button', { name: /analyse this export/i }))
+    await screen.findByText('Snapshot saved on this device.')
+
+    const [saved] = await store!.list()
+
+    expect(saved.completeness?.status).toBe('warning')
+    expect(JSON.stringify(saved.completeness)).not.toMatch(/fan\d|fol\d/)
+  })
+
+  it('shows no warning for a clean export', async () => {
+    const user = userEvent.setup()
+
+    renderApp('/app/import')
+    await uploadFile(user, exportZip(['alice', 'bob'], ['bob']))
+    await user.click(await screen.findByRole('button', { name: /analyse this export/i }))
+    await screen.findByRole('heading', { level: 1, name: /your network/i })
+
+    expect(screen.queryByText('These results may not cover everyone')).toBeNull()
+    expect(screen.queryByText('This export looks incomplete')).toBeNull()
   })
 
   it('reports merged duplicates and lets the user pick another file', async () => {
@@ -138,9 +210,9 @@ describe('import flow', () => {
     renderApp('/app/import')
     await uploadFile(user, zipFile({ 'a/followers_1.json': followersJson('alice', 'bob'), 'a/followers_2.json': followersJson('bob'), 'a/following.json': followingJson('bob') }))
 
-    const row = (await screen.findByText('Duplicate records merged')).closest('div')!
+    const row = (await screen.findByText('Followers: duplicates merged, skipped')).closest('div')!
 
-    expect(row).toHaveTextContent('1')
+    expect(row).toHaveTextContent('1, 0')
     await user.click(screen.getByRole('button', { name: /choose another file/i }))
     expect(screen.getByLabelText(/drop your instagram export zip/i)).toBeInTheDocument()
   })

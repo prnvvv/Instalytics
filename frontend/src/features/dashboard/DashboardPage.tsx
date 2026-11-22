@@ -2,7 +2,7 @@ import { ArrowLeftRight, Percent, Repeat, Star, UserCheck, UserMinus, UserPlus, 
 import { useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router'
 
-import { NoDataState, PageHead, SessionContext } from '@/app/common'
+import { CompletenessNotice, NoDataState, PageHead, SessionContext } from '@/app/common'
 import DotBar from '@/components/dots/DotBar'
 import DotColumns, { type DotColumn } from '@/components/dots/DotColumns'
 import DotGrid from '@/components/dots/DotGrid'
@@ -366,6 +366,8 @@ const DashboardPage = () => {
           {saveNote}
         </p>
       )}
+
+      <CompletenessNotice session={session} />
 
       {session.origin === 'sample' && (
         <div className='ix-banner' role='note'>

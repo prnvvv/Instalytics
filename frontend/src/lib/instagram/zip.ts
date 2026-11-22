@@ -8,7 +8,7 @@
 
 import { unzipSync } from 'fflate'
 
-import { isCandidatePath, isMetadataPath, normalizeMemberPath } from './parse'
+import { isCandidatePath, isMetadataPath, normalizeMemberPath } from './discovery'
 
 export type ArchiveLimits = {
   maxArchiveBytes: number

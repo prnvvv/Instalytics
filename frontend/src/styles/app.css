@@ -615,6 +615,30 @@ a.ix-card:hover {
   background-color: var(--ix-ok);
 }
 
+.ix-alert-info::before {
+  background-color: var(--ix-h0);
+}
+
+.ix-pill-status {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding-inline: 9px;
+  border-radius: 999px;
+  background-color: var(--ix-chrome);
+  font-family: var(--ix-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+}
+
+.ix-pill-status[data-status='processed'] {
+  background-color: rgb(63 178 127 / 0.18);
+}
+
+.ix-pill-status[data-status='failed'] {
+  background-color: rgb(224 86 107 / 0.18);
+}
+
 .ix-alert strong {
   display: block;
   font-weight: 600;

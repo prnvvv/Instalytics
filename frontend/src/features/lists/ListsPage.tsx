@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Navigate, NavLink, useParams } from 'react-router'
 
-import { NoDataState, PageHead, SessionContext } from '@/app/common'
+import { CompletenessNotice, NoDataState, PageHead, SessionContext } from '@/app/common'
 import { useAppData } from '@/data/context'
 import { accountsOfKind, type Relationship, type RelationshipKind } from '@/lib/analytics/relationships'
 import { formatCount } from '@/lib/format'
@@ -78,6 +78,8 @@ const ListsPage = () => {
         sub={active.description}
         actions={<SessionContext session={session} />}
       />
+
+      <CompletenessNotice session={session} />
 
       <nav aria-label='Lists' className='ix-tabs'>
         {KINDS.map(item => (
