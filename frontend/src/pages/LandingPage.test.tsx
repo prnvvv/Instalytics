@@ -40,8 +40,28 @@ describe('LandingPage', () => {
   it('states the privacy promises and never asks for credentials', () => {
     const { container } = render(<LandingPage />)
 
-    expect(screen.getByRole('heading', { name: 'No Instagram login' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /no login\. no credentials\. just your data\./i })).toBeInTheDocument()
+    expect(screen.getByText('Your password')).toBeInTheDocument()
     expect(container.querySelector('input, form')).toBeNull()
+  })
+
+  it('renders the how-it-works steps and a footer', () => {
+    render(<LandingPage />)
+
+    expect(screen.getByRole('heading', { name: /from export to insight/i })).toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3)
+
+    const footer = screen.getByRole('contentinfo')
+
+    expect(within(footer).getByText('INYX')).toBeInTheDocument()
+    expect(within(footer).getByRole('link', { name: 'Back to top' })).toHaveAttribute('href', '#home')
+    expect(within(footer).getByRole('navigation', { name: 'Footer' })).toBeInTheDocument()
+  })
+
+  it('uses the INYX name everywhere on the page', () => {
+    const { container } = render(<LandingPage />)
+
+    expect(container.textContent).not.toMatch(/instalytics/i)
   })
 
   it('carries the INYX branding and privacy line', async () => {
@@ -50,7 +70,9 @@ describe('LandingPage', () => {
     render(<LandingPage />)
     await user.click(screen.getByRole('button', { name: /info\.exe/i }))
 
-    expect(screen.getByText('INYX')).toBeInTheDocument()
+    const info = document.getElementById('kln-info-body')!
+
+    expect(within(info).getByText('INYX')).toBeInTheDocument()
     expect(screen.getByText('No login. No credentials. Just your data.', { selector: '.sr-only' })).toBeInTheDocument()
     expect(screen.queryByText(/kiln/i)).toBeNull()
   })

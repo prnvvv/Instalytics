@@ -1,0 +1,440 @@
+/**
+ * Sections below the hero. They reuse the hero's tokens (--color-kln-*, --font-kln-*) and its global classes
+ * (kln-mono, kln-px-word, kln-pill, kln-hot-dot, kln-services-dot, kln-services-status), and repeat only the
+ * values the hero keeps on its own root. Fallbacks keep each rule usable if a token is missing.
+ */
+
+.inyx-wrap {
+  --inyx-frame-x: 12px;
+  --inyx-inset-x: 16px;
+  --inyx-cell: 10px;
+  --inyx-seam: 1px;
+
+  padding: 12px var(--inyx-frame-x) 0;
+  color: var(--color-kln-ink, #141414);
+  font-family: var(--font-kln-sans, ui-sans-serif, system-ui, sans-serif);
+}
+
+.inyx-wrap-last {
+  padding-bottom: var(--inyx-frame-x);
+}
+
+@media (min-width: 640px) {
+  .inyx-wrap {
+    --inyx-frame-x: 16px;
+    --inyx-inset-x: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .inyx-wrap {
+    --inyx-frame-x: 20px;
+    --inyx-inset-x: 32px;
+  }
+}
+
+.inyx-muted {
+  color: var(--color-kln-muted, #767676);
+}
+
+/* The hero's hot square takes its colour from a variable that only exists inside the hero's root */
+.inyx-wrap .kln-hot-dot {
+  background-color: #f5a07a;
+}
+
+/* Boxed like the hero panel, on the same faint grid */
+.inyx-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  scroll-margin-top: 72px;
+  padding: clamp(28px, 5vw, 56px) var(--inyx-inset-x);
+  border: 1px solid var(--color-kln-line-box, #dcdcdc);
+  border-radius: 18px;
+  background-color: var(--color-kln-page, #ffffff);
+}
+
+.inyx-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(to right, transparent calc(var(--inyx-cell) - var(--inyx-seam)), var(--color-kln-grid, #f1f1f1) 0),
+    linear-gradient(to bottom, transparent calc(var(--inyx-cell) - var(--inyx-seam)), var(--color-kln-grid, #f1f1f1) 0);
+  background-size: var(--inyx-cell) var(--inyx-cell);
+}
+
+/* Panels that carry a pixel field along their top edge leave room for it */
+.inyx-panel-drips {
+  padding-top: clamp(120px, 14vw, 150px);
+}
+
+.inyx-drips {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  width: 100%;
+  height: 110px;
+  pointer-events: none;
+}
+
+.inyx-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: clamp(20px, 4vw, 36px);
+}
+
+/* Condensed Archivo capitals, like the hero headline */
+.inyx-title {
+  font-family: var(--font-kln-display, var(--font-kln-sans, sans-serif));
+  font-size: clamp(2.6rem, 8vw, 6.25rem);
+  font-stretch: 75%;
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.inyx-title-tight {
+  margin-top: 16px;
+  font-size: clamp(2.4rem, 6.5vw, 5rem);
+}
+
+.inyx-title-line {
+  display: block;
+}
+
+.inyx-title-line:has(.kln-px-word) {
+  line-height: 1;
+}
+
+.inyx-lede {
+  max-width: 34rem;
+  margin-top: clamp(18px, 3vw, 28px);
+  color: var(--color-kln-body, #5e5e5e);
+  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+}
+
+/* White cards, boxed like the hero's card */
+.inyx-card {
+  position: relative;
+  padding: 18px;
+  border: 1px solid var(--color-kln-line-box, #dcdcdc);
+  border-radius: 22px;
+  background-color: var(--color-kln-card, #ffffff);
+  box-shadow:
+    0 1px 0 rgb(0 0 0 / 0.02),
+    0 18px 40px -24px rgb(20 20 20 / 0.28);
+}
+
+.inyx-steps {
+  display: grid;
+  gap: 12px;
+  margin-top: clamp(28px, 5vw, 48px);
+}
+
+@media (min-width: 900px) {
+  .inyx-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.inyx-steps .inyx-card {
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.3s ease;
+}
+
+.inyx-steps .inyx-card:hover {
+  background-color: #fbfbfa;
+}
+
+.inyx-strip {
+  display: flex;
+  gap: 3px;
+}
+
+.inyx-sq {
+  width: 100%;
+  max-width: 16px;
+  aspect-ratio: 1;
+  background-color: #ececec;
+  transition: transform 0.3s var(--kln-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.inyx-sq[data-lit='true'] {
+  background-color: var(--sq);
+}
+
+.inyx-card:hover .inyx-sq[data-lit='true'] {
+  transform: translateY(-2px);
+}
+
+.inyx-card-index {
+  margin-top: 22px;
+}
+
+.inyx-card-name {
+  margin-top: 6px;
+  font-family: var(--font-kln-display, var(--font-kln-sans, sans-serif));
+  font-size: 1.75rem;
+  font-stretch: 75%;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.005em;
+  text-transform: uppercase;
+}
+
+.inyx-card-body {
+  margin-top: 10px;
+  margin-bottom: 20px;
+  color: var(--color-kln-body, #5e5e5e);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.inyx-steps .inyx-card > :last-child {
+  margin-top: auto;
+}
+
+/* The small grey window, as in the hero's nav */
+.inyx-window {
+  padding: 4px;
+  border-radius: 20px;
+  background-color: var(--color-kln-chrome, #f1f1f1);
+}
+
+.inyx-window-bar {
+  padding: 6px 12px 8px;
+  color: var(--color-kln-muted, #767676);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.inyx-window-card {
+  border-radius: 16px;
+  background-color: var(--color-kln-card, #ffffff);
+}
+
+.inyx-window-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  font-size: 0.85rem;
+}
+
+.inyx-window-row + .inyx-window-row {
+  border-top: 1px solid var(--color-kln-line, #e8e8e8);
+}
+
+.inyx-window-row dd {
+  text-align: right;
+  font-weight: 500;
+}
+
+.inyx-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.inyx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding-inline: 12px;
+  border-radius: 999px;
+  background-color: var(--color-kln-chrome, #f1f1f1);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.inyx-chip-sq {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  background-color: var(--sq);
+}
+
+/* ---------- Privacy ---------- */
+
+.inyx-split {
+  display: grid;
+  gap: clamp(28px, 5vw, 48px);
+  align-items: end;
+}
+
+@media (min-width: 900px) {
+  .inyx-split {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  }
+}
+
+.inyx-card-flat {
+  padding: 6px;
+}
+
+.inyx-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 8px;
+}
+
+.inyx-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  column-gap: 12px;
+  padding: 12px;
+  border-top: 1px solid var(--color-kln-line, #e8e8e8);
+  border-radius: 0;
+  transition: background-color 0.3s ease;
+}
+
+.inyx-row:hover {
+  background-color: #f5f5f4;
+}
+
+.inyx-row > :first-child {
+  grid-row: 1 / span 2;
+  padding-top: 4px;
+}
+
+.inyx-row-name {
+  font-family: var(--font-kln-display, var(--font-kln-sans, sans-serif));
+  font-size: 1.5rem;
+  font-stretch: 75%;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.inyx-row-line {
+  margin-top: 6px;
+  color: var(--color-kln-body, #5e5e5e);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.inyx-always {
+  display: grid;
+  gap: 16px;
+  margin-top: clamp(28px, 5vw, 48px);
+  padding-top: 24px;
+  border-top: 1px solid var(--color-kln-line, #e8e8e8);
+}
+
+@media (min-width: 720px) {
+  .inyx-always {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+  }
+}
+
+.inyx-always-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.inyx-always-line {
+  margin-top: 6px;
+  padding-left: 15px;
+  color: var(--color-kln-body, #5e5e5e);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+/* ---------- Footer ---------- */
+
+.inyx-foot-top {
+  display: grid;
+  gap: 32px;
+}
+
+@media (min-width: 900px) {
+  .inyx-foot-top {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.6fr) minmax(0, 1fr);
+    align-items: end;
+  }
+}
+
+.inyx-wordmark {
+  font-family: var(--font-kln-display, var(--font-kln-sans, sans-serif));
+  font-size: clamp(4.5rem, 18vw, 11rem);
+  font-stretch: 75%;
+  font-weight: 800;
+  line-height: 0.82;
+  letter-spacing: -0.01em;
+}
+
+.inyx-foot-tagline {
+  margin-top: 18px;
+  color: var(--color-kln-body, #5e5e5e);
+  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  letter-spacing: -0.01em;
+}
+
+.inyx-foot-tagline .kln-px-word {
+  color: var(--color-kln-ink, #141414);
+}
+
+.inyx-foot-nav ul {
+  margin-top: 10px;
+}
+
+.inyx-foot-link {
+  display: inline-block;
+  padding-block: 3px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 4px;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.inyx-foot-link:hover {
+  text-decoration-color: var(--kln-heat-3, #f5a07a);
+}
+
+.inyx-foot-note p:last-child {
+  margin-top: 10px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.inyx-foot-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: clamp(28px, 5vw, 48px);
+  padding-top: 20px;
+  border-top: 1px solid var(--color-kln-line, #e8e8e8);
+  color: var(--color-kln-muted, #767676);
+  font-size: 0.8rem;
+}
+
+.inyx-wrap :focus-visible {
+  outline: 2px solid #a98ae6;
+  outline-offset: 2px;
+}
