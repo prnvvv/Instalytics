@@ -1,0 +1,1560 @@
+{
+  "_comment": "Shared by backend/tests/test_parity_cases.py and frontend/src/lib/instagram/parity.test.ts. All data is synthetic. A value of {\"__raw\": text} means the file content is exactly that text instead of JSON.",
+  "cases": [
+    {
+      "name": "standard layout",
+      "files": {
+        "connections/followers_and_following/followers_1.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/alice",
+                "value": "alice",
+                "timestamp": 1700000000
+              }
+            ]
+          },
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/bob",
+                "value": "bob",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ],
+        "connections/followers_and_following/following.json": {
+          "relationships_following": [
+            {
+              "title": "bob",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/bob",
+                  "timestamp": 1700000000
+                }
+              ]
+            },
+            {
+              "title": "carol",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/carol",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [
+          "alice",
+          "bob"
+        ],
+        "following": [
+          "bob",
+          "carol"
+        ],
+        "issues": [],
+        "status": "complete",
+        "totals": {
+          "followers": {
+            "recordsSeen": 2,
+            "validRecords": 2,
+            "rejectedRecords": 0,
+            "duplicatesRemoved": 0,
+            "uniqueAccounts": 2,
+            "sourceFiles": 1
+          },
+          "following": {
+            "recordsSeen": 2,
+            "validRecords": 2,
+            "rejectedRecords": 0,
+            "duplicatesRemoved": 0,
+            "uniqueAccounts": 2,
+            "sourceFiles": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "every follower file is aggregated",
+      "files": {
+        "e/followers_1.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/a1",
+                "value": "a1",
+                "timestamp": 1700000000
+              }
+            ]
+          },
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/a2",
+                "value": "a2",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ],
+        "e/followers_2.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/a3",
+                "value": "a3",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ],
+        "e/followers_3.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/a4",
+                "value": "a4",
+                "timestamp": 1700000000
+              }
+            ]
+          },
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/a5",
+                "value": "a5",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ],
+        "e/following.json": {
+          "relationships_following": [
+            {
+              "title": "f1",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/f1",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5"
+        ],
+        "following": [
+          "f1"
+        ],
+        "issues": [],
+        "status": "complete",
+        "totals": {
+          "followers": {
+            "recordsSeen": 5,
+            "validRecords": 5,
+            "rejectedRecords": 0,
+            "duplicatesRemoved": 0,
+            "uniqueAccounts": 5,
+            "sourceFiles": 3
+          },
+          "following": {
+            "recordsSeen": 1,
+            "validRecords": 1,
+            "rejectedRecords": 0,
+            "duplicatesRemoved": 0,
+            "uniqueAccounts": 1,
+            "sourceFiles": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "a gap in numbered parts is an error",
+      "files": {
+        "followers_1.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/a1",
+                "value": "a1",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ],
+        "followers_3.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/a3",
+                "value": "a3",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ],
+        "following.json": {
+          "relationships_following": [
+            {
+              "title": "f1",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/f1",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [
+          "a1",
+          "a3"
+        ],
+        "following": [
+          "f1"
+        ],
+        "issues": [
+          "missing_part"
+        ],
+        "status": "incomplete"
+      }
+    },
+    {
+      "name": "file names are case-insensitive and found anywhere",
+      "files": {
+        "Some Root/Deep/Followers_1.JSON": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/a1",
+                "value": "a1",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ],
+        "other\\place\\FOLLOWING.json": {
+          "relationships_following": [
+            {
+              "title": "f1",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/f1",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [
+          "a1"
+        ],
+        "following": [
+          "f1"
+        ],
+        "issues": [],
+        "status": "complete"
+      }
+    },
+    {
+      "name": "look-alike files are never counted",
+      "files": {
+        "connections/followers_and_following/followers_1.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/alice",
+                "value": "alice",
+                "timestamp": 1700000000
+              }
+            ]
+          },
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/bob",
+                "value": "bob",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ],
+        "connections/followers_and_following/following.json": {
+          "relationships_following": [
+            {
+              "title": "bob",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/bob",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        },
+        "connections/followers_and_following/recent_follow_requests.json": [
+          {
+            "timestamp": 1700000000,
+            "media": [],
+            "label_values": [
+              {
+                "label": "URL",
+                "value": "https://www.instagram.com/zed"
+              },
+              {
+                "label": "Name",
+                "value": "Display Name"
+              },
+              {
+                "label": "Username",
+                "value": "zed"
+              }
+            ]
+          },
+          {
+            "timestamp": 1700000000,
+            "media": [],
+            "label_values": [
+              {
+                "label": "URL",
+                "value": "https://www.instagram.com/yan"
+              },
+              {
+                "label": "Name",
+                "value": "Display Name"
+              },
+              {
+                "label": "Username",
+                "value": "yan"
+              }
+            ]
+          }
+        ],
+        "connections/followers_and_following/pending_follow_requests.json": [
+          {
+            "timestamp": 1700000000,
+            "media": [],
+            "label_values": [
+              {
+                "label": "URL",
+                "value": "https://www.instagram.com/zed"
+              },
+              {
+                "label": "Name",
+                "value": "Display Name"
+              },
+              {
+                "label": "Username",
+                "value": "zed"
+              }
+            ]
+          }
+        ],
+        "connections/followers_and_following/recently_unfollowed_profiles.json": [
+          {
+            "timestamp": 1700000000,
+            "media": [],
+            "label_values": [
+              {
+                "label": "URL",
+                "value": "https://www.instagram.com/yan"
+              },
+              {
+                "label": "Name",
+                "value": "Display Name"
+              },
+              {
+                "label": "Username",
+                "value": "yan"
+              }
+            ]
+          }
+        ],
+        "connections/followers_and_following/close_friends.json": [
+          {
+            "timestamp": 1700000000,
+            "media": [],
+            "label_values": [
+              {
+                "label": "URL",
+                "value": "https://www.instagram.com/zed"
+              },
+              {
+                "label": "Name",
+                "value": "Display Name"
+              },
+              {
+                "label": "Username",
+                "value": "zed"
+              }
+            ]
+          }
+        ],
+        "following_hashtags.json": [],
+        "followers_1.json.bak": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/nope",
+                "value": "nope",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "followers": [
+          "alice",
+          "bob"
+        ],
+        "following": [
+          "bob"
+        ],
+        "issues": [],
+        "status": "complete",
+        "totals": {
+          "followers": {
+            "recordsSeen": 2,
+            "validRecords": 2,
+            "rejectedRecords": 0,
+            "duplicatesRemoved": 0,
+            "uniqueAccounts": 2,
+            "sourceFiles": 1
+          },
+          "following": {
+            "recordsSeen": 1,
+            "validRecords": 1,
+            "rejectedRecords": 0,
+            "duplicatesRemoved": 0,
+            "uniqueAccounts": 1,
+            "sourceFiles": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "label_values layout inside a followers file",
+      "files": {
+        "followers_1.json": [
+          {
+            "timestamp": 1700000000,
+            "media": [],
+            "label_values": [
+              {
+                "label": "URL",
+                "value": "https://www.instagram.com/a1"
+              },
+              {
+                "label": "Name",
+                "value": "Display Name"
+              },
+              {
+                "label": "Username",
+                "value": "a1"
+              }
+            ]
+          },
+          {
+            "timestamp": 1700000005,
+            "media": [],
+            "label_values": [
+              {
+                "label": "URL",
+                "value": "https://www.instagram.com/a2"
+              },
+              {
+                "label": "Name",
+                "value": "Display Name"
+              },
+              {
+                "label": "Username",
+                "value": "a2"
+              }
+            ]
+          }
+        ],
+        "following.json": {
+          "relationships_following": [
+            {
+              "title": "a2",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/a2",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [
+          "a1",
+          "a2"
+        ],
+        "following": [
+          "a2"
+        ],
+        "issues": [],
+        "status": "complete"
+      }
+    },
+    {
+      "name": "nested lists and flat records",
+      "files": {
+        "followers_1.json": [
+          [
+            {
+              "title": "",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/a1",
+                  "value": "a1",
+                  "timestamp": 1700000000
+                }
+              ]
+            },
+            {
+              "title": "",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/a2",
+                  "value": "a2",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "title": "",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/a3",
+                  "value": "a3",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ],
+          {
+            "href": "https://www.instagram.com/a4",
+            "timestamp": 1700000000
+          },
+          {
+            "username": "a5"
+          }
+        ],
+        "following.json": {
+          "relationships_following": [
+            {
+              "title": "a1",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/a1",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5"
+        ],
+        "following": [
+          "a1"
+        ],
+        "issues": [],
+        "status": "complete"
+      }
+    },
+    {
+      "name": "unknown wrapper key holding the only record list",
+      "files": {
+        "followers_1.json": {
+          "version": 2,
+          "followers_list": [
+            {
+              "title": "",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/a1",
+                  "value": "a1",
+                  "timestamp": 1700000000
+                }
+              ]
+            },
+            {
+              "title": "",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/a2",
+                  "value": "a2",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        },
+        "following.json": {
+          "relationships_following": [
+            {
+              "title": "a1",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/a1",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [
+          "a1",
+          "a2"
+        ],
+        "following": [
+          "a1"
+        ],
+        "issues": [],
+        "status": "complete"
+      }
+    },
+    {
+      "name": "username from value, title and href, in that spirit",
+      "files": {
+        "followers_1.json": [
+          {
+            "title": "",
+            "string_list_data": [
+              {
+                "value": "from_value",
+                "timestamp": 1700000000
+              }
+            ]
+          },
+          {
+            "title": "from_title",
+            "string_list_data": [
+              {
+                "timestamp": 1700000000
+              }
+            ]
+          },
+          {
+            "title": "",
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/_u/from_href_u"
+              }
+            ]
+          },
+          {
+            "title": "",
+            "string_list_data": [
+              {
+                "href": "https://instagram.com/from_href/?hl=en"
+              }
+            ]
+          },
+          {
+            "title": "after_empty",
+            "string_list_data": [
+              {
+                "value": "",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ],
+        "following.json": {
+          "relationships_following": [
+            {
+              "title": "x",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/x",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [
+          "after_empty",
+          "from_href",
+          "from_href_u",
+          "from_title",
+          "from_value"
+        ],
+        "following": [
+          "x"
+        ],
+        "issues": [],
+        "status": "complete"
+      }
+    },
+    {
+      "name": "the profile url wins and the conflict is noted",
+      "files": {
+        "followers_1.json": [
+          {
+            "title": "old_name",
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/new_name",
+                "value": "old_name"
+              }
+            ]
+          }
+        ],
+        "following.json": {
+          "relationships_following": [
+            {
+              "title": "x",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/x",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [
+          "new_name"
+        ],
+        "following": [
+          "x"
+        ],
+        "issues": [
+          "conflicting_usernames"
+        ],
+        "status": "complete"
+      }
+    },
+    {
+      "name": "rejected records are counted and warned about",
+      "files": {
+        "followers_1.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/good",
+                "value": "good",
+                "timestamp": 1700000000
+              }
+            ]
+          },
+          {
+            "title": "",
+            "string_list_data": []
+          },
+          {
+            "title": "",
+            "string_list_data": [
+              {}
+            ]
+          },
+          {
+            "title": "",
+            "string_list_data": [
+              "not-a-dict"
+            ]
+          },
+          {
+            "title": "bad name!",
+            "string_list_data": [
+              {
+                "value": "bad name!"
+              }
+            ]
+          },
+          {
+            "unrelated": true
+          },
+          "string",
+          null,
+          42
+        ],
+        "following.json": {
+          "relationships_following": [
+            {
+              "title": "x",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/x",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [
+          "good"
+        ],
+        "following": [
+          "x"
+        ],
+        "issues": [
+          "rejected_records"
+        ],
+        "status": "warning",
+        "totals": {
+          "followers": {
+            "recordsSeen": 9,
+            "validRecords": 1,
+            "rejectedRecords": 8,
+            "duplicatesRemoved": 0,
+            "uniqueAccounts": 1,
+            "sourceFiles": 1
+          },
+          "following": {
+            "recordsSeen": 1,
+            "validRecords": 1,
+            "rejectedRecords": 0,
+            "duplicatesRemoved": 0,
+            "uniqueAccounts": 1,
+            "sourceFiles": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "duplicates across files and case variants",
+      "files": {
+        "followers_1.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/Alice",
+                "value": "Alice",
+                "timestamp": 1700000000
+              }
+            ]
+          },
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/ALICE",
+                "value": "ALICE",
+                "timestamp": 1700000010
+              }
+            ]
+          },
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/bob",
+                "value": "bob",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ],
+        "followers_2.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/bob",
+                "value": "bob",
+                "timestamp": 1700000000
+              }
+            ]
+          },
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/carol",
+                "value": "carol",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ],
+        "following.json": {
+          "relationships_following": [
+            {
+              "title": "alice",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/alice",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [
+          "alice",
+          "bob",
+          "carol"
+        ],
+        "following": [
+          "alice"
+        ],
+        "issues": [],
+        "status": "complete",
+        "totals": {
+          "followers": {
+            "recordsSeen": 5,
+            "validRecords": 5,
+            "rejectedRecords": 0,
+            "duplicatesRemoved": 2,
+            "uniqueAccounts": 3,
+            "sourceFiles": 2
+          },
+          "following": {
+            "recordsSeen": 1,
+            "validRecords": 1,
+            "rejectedRecords": 0,
+            "duplicatesRemoved": 0,
+            "uniqueAccounts": 1,
+            "sourceFiles": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "a malformed named file fails loudly",
+      "files": {
+        "followers_1.json": {
+          "__raw": "{not json"
+        },
+        "following.json": {
+          "relationships_following": [
+            {
+              "title": "x",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/x",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [],
+        "following": [
+          "x"
+        ],
+        "issues": [
+          "invalid_json"
+        ],
+        "status": "incomplete"
+      }
+    },
+    {
+      "name": "an unexpected structure fails loudly",
+      "files": {
+        "followers_1.json": "just a string",
+        "following.json": {
+          "relationships_following": [
+            {
+              "title": "x",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/x",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [],
+        "following": [
+          "x"
+        ],
+        "issues": [
+          "unexpected_structure"
+        ],
+        "status": "incomplete"
+      }
+    },
+    {
+      "name": "ambiguous wrappers are reported, not guessed",
+      "files": {
+        "followers_1.json": {
+          "one": [
+            {
+              "title": "",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/a1",
+                  "value": "a1",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ],
+          "two": [
+            {
+              "title": "",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/a2",
+                  "value": "a2",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        },
+        "following.json": {
+          "relationships_following": [
+            {
+              "title": "x",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/x",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [],
+        "following": [
+          "x"
+        ],
+        "issues": [
+          "unexpected_structure"
+        ],
+        "status": "incomplete"
+      }
+    },
+    {
+      "name": "no followers or following files at all",
+      "files": {
+        "media/photo.jpg.json": {
+          "__raw": "{}"
+        },
+        "messages/inbox/t/message_1.json": {
+          "__raw": "{}"
+        }
+      },
+      "expect": {
+        "followers": [],
+        "following": [],
+        "issues": [
+          "no_connection_files"
+        ],
+        "status": "incomplete"
+      }
+    },
+    {
+      "name": "only a followers file",
+      "files": {
+        "followers_1.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/a1",
+                "value": "a1",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "followers": [
+          "a1"
+        ],
+        "following": [],
+        "issues": [
+          "missing_following_file"
+        ],
+        "status": "incomplete"
+      }
+    },
+    {
+      "name": "only a following file",
+      "files": {
+        "following.json": {
+          "relationships_following": [
+            {
+              "title": "a1",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/a1",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [],
+        "following": [
+          "a1"
+        ],
+        "issues": [
+          "missing_followers_file"
+        ],
+        "status": "incomplete"
+      }
+    },
+    {
+      "name": "empty lists are informational",
+      "files": {
+        "followers_1.json": [],
+        "following.json": {
+          "relationships_following": []
+        }
+      },
+      "expect": {
+        "followers": [],
+        "following": [],
+        "issues": [
+          "empty_list",
+          "empty_list"
+        ],
+        "status": "complete"
+      }
+    },
+    {
+      "name": "the same part in two places is merged and noted",
+      "files": {
+        "copy1/followers_1.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/a",
+                "value": "a",
+                "timestamp": 1700000000
+              }
+            ]
+          },
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/b",
+                "value": "b",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ],
+        "copy2/followers_1.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/a",
+                "value": "a",
+                "timestamp": 1700000000
+              }
+            ]
+          },
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/b",
+                "value": "b",
+                "timestamp": 1700000000
+              }
+            ]
+          }
+        ],
+        "copy1/following.json": {
+          "relationships_following": [
+            {
+              "title": "a",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/a",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [
+          "a",
+          "b"
+        ],
+        "following": [
+          "a"
+        ],
+        "issues": [
+          "duplicate_source_files"
+        ],
+        "status": "complete",
+        "totals": {
+          "followers": {
+            "recordsSeen": 4,
+            "validRecords": 4,
+            "rejectedRecords": 0,
+            "duplicatesRemoved": 2,
+            "uniqueAccounts": 2,
+            "sourceFiles": 2
+          },
+          "following": {
+            "recordsSeen": 1,
+            "validRecords": 1,
+            "rejectedRecords": 0,
+            "duplicatesRemoved": 0,
+            "uniqueAccounts": 1,
+            "sourceFiles": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "malicious values never become accounts",
+      "files": {
+        "followers_1.json": [
+          {
+            "title": "",
+            "media_list_data": [],
+            "string_list_data": [
+              {
+                "href": "javascript:alert(1)",
+                "value": "alice",
+                "timestamp": 1700000000
+              }
+            ]
+          },
+          {
+            "title": "",
+            "string_list_data": [
+              {
+                "value": "<img src=x onerror=alert(1)>"
+              }
+            ]
+          },
+          {
+            "title": "",
+            "string_list_data": [
+              {
+                "value": "javascript:alert(1)"
+              }
+            ]
+          },
+          {
+            "title": "",
+            "string_list_data": [
+              {
+                "href": "https://evil.example/zed"
+              }
+            ]
+          },
+          {
+            "title": "",
+            "string_list_data": [
+              {
+                "href": "https://www.instagram.com/p/ABC123/"
+              }
+            ]
+          }
+        ],
+        "following.json": {
+          "relationships_following": [
+            {
+              "title": "x",
+              "media_list_data": [],
+              "string_list_data": [
+                {
+                  "href": "https://www.instagram.com/_u/x",
+                  "timestamp": 1700000000
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "followers": [
+          "alice"
+        ],
+        "following": [
+          "x"
+        ],
+        "issues": [
+          "rejected_records"
+        ],
+        "status": "warning"
+      }
+    }
+  ],
+  "analytics": [
+    {
+      "name": "partition and rates",
+      "followers": [
+        "a",
+        "b",
+        "c"
+      ],
+      "following": [
+        "b",
+        "c",
+        "d",
+        "e"
+      ],
+      "expect": {
+        "followersCount": 3,
+        "followingCount": 4,
+        "mutualCount": 2,
+        "notFollowingBackCount": 2,
+        "fansCount": 1,
+        "uniqueAccountsCount": 5,
+        "mutualityRate": 40.0,
+        "followBackRate": 50.0,
+        "followerToFollowingRatio": 0.75,
+        "mutuals": [
+          "b",
+          "c"
+        ],
+        "notFollowingBack": [
+          "d",
+          "e"
+        ],
+        "fans": [
+          "a"
+        ]
+      }
+    },
+    {
+      "name": "both lists empty gives undefined rates",
+      "followers": [],
+      "following": [],
+      "expect": {
+        "followersCount": 0,
+        "followingCount": 0,
+        "mutualCount": 0,
+        "notFollowingBackCount": 0,
+        "fansCount": 0,
+        "uniqueAccountsCount": 0,
+        "mutualityRate": null,
+        "followBackRate": null,
+        "followerToFollowingRatio": null,
+        "mutuals": [],
+        "notFollowingBack": [],
+        "fans": []
+      }
+    },
+    {
+      "name": "no following gives an undefined follow-back rate",
+      "followers": [
+        "a",
+        "b"
+      ],
+      "following": [],
+      "expect": {
+        "followersCount": 2,
+        "followingCount": 0,
+        "mutualCount": 0,
+        "notFollowingBackCount": 0,
+        "fansCount": 2,
+        "uniqueAccountsCount": 2,
+        "mutualityRate": 0.0,
+        "followBackRate": null,
+        "followerToFollowingRatio": null,
+        "mutuals": [],
+        "notFollowingBack": [],
+        "fans": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "name": "no followers",
+      "followers": [],
+      "following": [
+        "a",
+        "b"
+      ],
+      "expect": {
+        "followersCount": 0,
+        "followingCount": 2,
+        "mutualCount": 0,
+        "notFollowingBackCount": 2,
+        "fansCount": 0,
+        "uniqueAccountsCount": 2,
+        "mutualityRate": 0.0,
+        "followBackRate": 0.0,
+        "followerToFollowingRatio": 0.0,
+        "mutuals": [],
+        "notFollowingBack": [
+          "a",
+          "b"
+        ],
+        "fans": []
+      }
+    },
+    {
+      "name": "duplicates are counted once",
+      "followers": [
+        "a",
+        "a",
+        "b"
+      ],
+      "following": [
+        "a",
+        "a",
+        "a"
+      ],
+      "expect": {
+        "followersCount": 2,
+        "followingCount": 1,
+        "mutualCount": 1,
+        "notFollowingBackCount": 0,
+        "fansCount": 1,
+        "uniqueAccountsCount": 2,
+        "mutualityRate": 50.0,
+        "followBackRate": 100.0,
+        "followerToFollowingRatio": 2.0,
+        "mutuals": [
+          "a"
+        ],
+        "notFollowingBack": [],
+        "fans": [
+          "b"
+        ]
+      }
+    },
+    {
+      "name": "identical lists are fully mutual",
+      "followers": [
+        "a",
+        "b"
+      ],
+      "following": [
+        "b",
+        "a"
+      ],
+      "expect": {
+        "followersCount": 2,
+        "followingCount": 2,
+        "mutualCount": 2,
+        "notFollowingBackCount": 0,
+        "fansCount": 0,
+        "uniqueAccountsCount": 2,
+        "mutualityRate": 100.0,
+        "followBackRate": 100.0,
+        "followerToFollowingRatio": 1.0,
+        "mutuals": [
+          "a",
+          "b"
+        ],
+        "notFollowingBack": [],
+        "fans": []
+      }
+    }
+  ]
+}
