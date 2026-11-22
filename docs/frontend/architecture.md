@@ -27,6 +27,19 @@ following back" or "fans"), or lists fewer (changes after exporting, a date-rang
 explanations are hedged on purpose: an export carries no per-account status, so nothing claims to know which
 accounts are inactive. What the user types is computed locally and never stored or sent.
 
+### Marking unavailable accounts
+
+Because the export cannot say which accounts are gone, the user can set them aside themselves
+(`lib/analytics/unavailable.ts`). In the lists, each row has an **Unavailable** tick and each page a "Mark these N"
+button; an optional reason (deactivated, suspended, deleted, blocked me) is a label the user chooses, never
+something INYX detects. A marked account is removed from **both** lists before any metric is computed
+(`DataProvider` builds the session from the complete lists plus the marks), so followers, following, mutuals and
+every rate stay consistent. Marked accounts appear under the **Unavailable** tab, where the reason can be changed
+or the account restored, and in that tab's CSV (with a `reason` column). Marks live in memory for an unsaved
+import; for a saved snapshot they are stored with it (`unavailable`, `unavailableReasons`) in this browser's
+IndexedDB, while the snapshot keeps the complete lists untouched. Settings can clear all marks. Nothing here
+contacts Instagram: INYX never looks accounts up.
+
 ## One set of rules on both sides
 
 `lib/instagram` and `lib/analytics` are a TypeScript port of the backend's parser, completeness diagnostics and

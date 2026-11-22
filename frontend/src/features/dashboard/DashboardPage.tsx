@@ -2,7 +2,7 @@ import { ArrowLeftRight, Percent, Repeat, Star, UserCheck, UserMinus, UserPlus, 
 import { useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router'
 
-import { CompletenessNotice, NoDataState, PageHead, SessionContext } from '@/app/common'
+import { CompletenessNotice, MarksNotice, NoDataState, PageHead, SessionContext } from '@/app/common'
 import DotBar from '@/components/dots/DotBar'
 import DotColumns, { type DotColumn } from '@/components/dots/DotColumns'
 import DotGrid from '@/components/dots/DotGrid'
@@ -11,7 +11,7 @@ import { monthlyActivity, timestampCoverage } from '@/lib/analytics/activity'
 import { buildInsights } from '@/lib/analytics/insights'
 import type { RelationshipAnalytics } from '@/lib/analytics/relationships'
 import { formatCount, formatPercent, formatRatio } from '@/lib/format'
-import type { Snapshot } from '@/lib/storage/snapshots'
+import { effectiveCounts, type Snapshot } from '@/lib/storage/snapshots'
 
 import ReconcilePanel from './ReconcilePanel'
 import StatCard from './StatCard'
@@ -257,7 +257,7 @@ const InsightsCard = ({ analysis }: { analysis: RelationshipAnalytics }) => {
 const TrendCard = ({ snapshots }: { snapshots: Snapshot[] }) => {
   const [which, setWhich] = useState<Which>('followers')
   const recent = snapshots.slice(-12)
-  const counts = recent.map(s => s.counts[which])
+  const counts = recent.map(s => effectiveCounts(s)[which])
   const min = Math.min(...counts)
   const max = Math.max(...counts)
   const pad = Math.max(1, Math.round((max - min) * 0.25) || Math.round(max * 0.1))
@@ -265,11 +265,13 @@ const TrendCard = ({ snapshots }: { snapshots: Snapshot[] }) => {
   const columns: DotColumn[] = recent.map(s => {
     const date = new Date(s.analyzedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
+    const count = effectiveCounts(s)[which]
+
     return {
       key: s.id,
       label: date,
-      value: s.counts[which],
-      tooltip: `${date}: ${formatCount(s.counts[which])} ${which}${s.label ? ` (${s.label})` : ''}`
+      value: count,
+      tooltip: `${date}: ${formatCount(count)} ${which}${s.label ? ` (${s.label})` : ''}`
     }
   })
 
@@ -369,6 +371,7 @@ const DashboardPage = () => {
       )}
 
       <CompletenessNotice session={session} />
+      <MarksNotice session={session} />
 
       {session.origin === 'sample' && (
         <div className='ix-banner' role='note'>

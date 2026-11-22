@@ -7,7 +7,8 @@ import { useAppData } from '@/data/context'
 import { compareSnapshots, type ComparisonKind } from '@/lib/analytics/compare'
 import { formatCount, formatDateTime } from '@/lib/format'
 import type { Account } from '@/lib/instagram/types'
-import { fromStored, type Snapshot } from '@/lib/storage/snapshots'
+import { excludeUnavailable } from '@/lib/analytics/unavailable'
+import { effectiveCounts, fromStored, type Snapshot } from '@/lib/storage/snapshots'
 
 import AccountTable from '../lists/AccountTable'
 
@@ -48,8 +49,9 @@ const HistoryPage = () => {
       id: s.id,
       title: snapshotTitle(s),
       analyzedAt: s.analyzedAt,
-      followers: fromStored(s.followers),
-      following: fromStored(s.following)
+      // Comparisons use each snapshot as the user saw it, with accounts they marked unavailable left out.
+      followers: excludeUnavailable(fromStored(s.followers), new Set(s.unavailable ?? [])),
+      following: excludeUnavailable(fromStored(s.following), new Set(s.unavailable ?? []))
     }))
 
     if (unsavedCurrent) {
@@ -156,8 +158,8 @@ const HistoryPage = () => {
                 <div>
                   <p style={{ fontWeight: 600 }}>{s.label || 'Snapshot'}</p>
                   <p className='ix-note'>
-                    Analysed {formatDateTime(s.analyzedAt)} · {s.source.fileName} · {formatCount(s.counts.followers)} followers ·{' '}
-                    {formatCount(s.counts.following)} following
+                    Analysed {formatDateTime(s.analyzedAt)} · {s.source.fileName} · {formatCount(effectiveCounts(s).followers)} followers ·{' '}
+                    {formatCount(effectiveCounts(s).following)} following
                   </p>
                 </div>
                 <div className='flex gap-2'>

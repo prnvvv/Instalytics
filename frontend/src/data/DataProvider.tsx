@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { computeRelationships } from '@/lib/analytics/relationships'
+import { excludeUnavailable, isReason, updateMarks, updateReasons, type Reasons } from '@/lib/analytics/unavailable'
 import type { ImportResult } from '@/lib/instagram/importExport'
+import type { Account } from '@/lib/instagram/types'
 import { SAMPLE_ANALYZED_AT, buildSampleData } from '@/lib/sample'
 import {
   createBrowserStore,
@@ -33,17 +35,55 @@ const loadSettings = (): Settings => {
   }
 }
 
-const sessionFromSnapshot = (snapshot: Snapshot): Session => ({
-  analysis: computeRelationships(fromStored(snapshot.followers), fromStored(snapshot.following)),
-  origin: 'snapshot',
-  fileName: snapshot.source.fileName,
-  fileSize: snapshot.source.fileSize,
-  analyzedAt: snapshot.analyzedAt,
-  snapshotId: snapshot.id,
-  diagnostics: null,
-  completeness: snapshot.completeness?.status ?? null,
-  issues: snapshot.completeness?.issues ?? []
-})
+type SessionMeta = Omit<Session, 'analysis' | 'baseFollowers' | 'baseFollowing' | 'unavailable' | 'reasons'>
+
+/** Builds a session whose figures exclude the accounts the user marked as unavailable. */
+const buildSession = (
+  followers: Account[],
+  following: Account[],
+  unavailable: string[],
+  meta: SessionMeta,
+  reasons: Reasons = {}
+): Session => {
+  const marked = new Set(unavailable)
+
+  return {
+    ...meta,
+    baseFollowers: followers,
+    baseFollowing: following,
+    unavailable,
+    reasons,
+    analysis: computeRelationships(excludeUnavailable(followers, marked), excludeUnavailable(following, marked))
+  }
+}
+
+const sessionFromSnapshot = (snapshot: Snapshot): Session => {
+  const unavailable = [...(snapshot.unavailable ?? [])].sort()
+  const marked = new Set(unavailable)
+  // Only reasons we recognise, and only for accounts that are still marked.
+  const reasons: Reasons = {}
+
+  for (const [username, value] of Object.entries(snapshot.unavailableReasons ?? {})) {
+    if (marked.has(username) && isReason(value)) reasons[username] = value
+  }
+
+  return buildSession(
+    fromStored(snapshot.followers),
+    fromStored(snapshot.following),
+    unavailable,
+    {
+      origin: 'snapshot',
+      fileName: snapshot.source.fileName,
+      fileSize: snapshot.source.fileSize,
+      analyzedAt: snapshot.analyzedAt,
+      snapshotId: snapshot.id,
+      diagnostics: null,
+      completeness: snapshot.completeness?.status ?? null,
+      issues: snapshot.completeness?.issues ?? []
+    },
+    reasons
+  )
+}
 
 const byDate = (a: Snapshot, b: Snapshot) => (a.analyzedAt < b.analyzedAt ? -1 : a.analyzedAt > b.analyzedAt ? 1 : 0)
 
@@ -117,17 +157,20 @@ export const DataProvider = ({ children, store: injected }: PropsDataProvider) =
         return { saved: null, duplicateOf: null }
       }
 
-      const duplicateOf = findDuplicate(snapshots, current.analysis.followers, current.analysis.following) ?? null
+      // The snapshot keeps the complete lists; the user's unavailable marks are stored beside them.
+      const duplicateOf = findDuplicate(snapshots, current.baseFollowers, current.baseFollowing) ?? null
 
       if (duplicateOf) return { saved: null, duplicateOf }
 
       const snapshot = createSnapshot({
-        followers: current.analysis.followers,
-        following: current.analysis.following,
+        followers: current.baseFollowers,
+        following: current.baseFollowing,
         analyzedAt: current.analyzedAt,
         fileName: current.fileName,
         fileSize: current.fileSize,
         label,
+        unavailable: current.unavailable,
+        unavailableReasons: current.reasons,
         completeness:
           current.completeness === null
             ? undefined
@@ -157,8 +200,7 @@ export const DataProvider = ({ children, store: injected }: PropsDataProvider) =
 
   const startSession = useCallback<AppData['startSession']>(
     async (result: ImportResult, options) => {
-      const next: Session = {
-        analysis: computeRelationships(result.parsed.followers, result.parsed.following),
+      const next = buildSession(result.parsed.followers, result.parsed.following, [], {
         origin: 'import',
         fileName: result.fileName,
         fileSize: result.fileSize,
@@ -167,7 +209,7 @@ export const DataProvider = ({ children, store: injected }: PropsDataProvider) =
         diagnostics: result.parsed.diagnostics,
         completeness: result.parsed.diagnostics.status,
         issues: result.parsed.issues
-      }
+      })
 
       setSession(next)
 
@@ -193,18 +235,66 @@ export const DataProvider = ({ children, store: injected }: PropsDataProvider) =
   const loadSample = useCallback(() => {
     const { followers, following } = buildSampleData()
 
-    setSession({
-      analysis: computeRelationships(followers, following),
-      origin: 'sample',
-      fileName: 'sample-data (synthetic)',
-      fileSize: 0,
-      analyzedAt: SAMPLE_ANALYZED_AT,
-      snapshotId: null,
-      diagnostics: null,
-      completeness: null,
-      issues: []
-    })
+    setSession(
+      buildSession(followers, following, [], {
+        origin: 'sample',
+        fileName: 'sample-data (synthetic)',
+        fileSize: 0,
+        analyzedAt: SAMPLE_ANALYZED_AT,
+        snapshotId: null,
+        diagnostics: null,
+        completeness: null,
+        issues: []
+      })
+    )
   }, [])
+
+  const setUnavailable = useCallback<AppData['setUnavailable']>(
+    async (usernames, marked, reason) => {
+      const current = sessionRef.current
+
+      if (!current) return
+
+      const unavailable = updateMarks(current.unavailable, usernames, marked)
+      const reasons = updateReasons(current.reasons, usernames, marked ? reason : undefined, new Set(unavailable))
+      const sameMarks = unavailable.length === current.unavailable.length && unavailable.every((u, i) => u === current.unavailable[i])
+      const sameReasons = JSON.stringify(Object.entries(reasons).sort()) === JSON.stringify(Object.entries(current.reasons).sort())
+
+      if (sameMarks && sameReasons) return
+
+      const { analysis: _analysis, baseFollowers, baseFollowing, unavailable: _unavailable, reasons: _reasons, ...meta } = current
+      const next = buildSession(baseFollowers, baseFollowing, unavailable, meta, reasons)
+
+      // Updated at once so rapid consecutive ticks never start from a stale session.
+      sessionRef.current = next
+      setSession(next)
+
+      // A saved analysis keeps the marks with its snapshot, in this browser only. Anything else is kept in memory.
+      const snapshot = current.snapshotId ? snapshots.find(s => s.id === current.snapshotId) : undefined
+
+      if (store !== null && snapshot) {
+        const { unavailable: _old, unavailableReasons: _oldReasons, ...rest } = snapshot
+        const updated: Snapshot =
+          unavailable.length === 0
+            ? rest
+            : { ...rest, unavailable, ...(Object.keys(reasons).length > 0 ? { unavailableReasons: reasons } : {}) }
+
+        try {
+          await store.put(updated)
+          setSnapshots(items => items.map(s => (s.id === updated.id ? updated : s)))
+          setStorageError(null)
+        } catch {
+          setStorageError('Your marks could not be saved with the snapshot in this browser.')
+        }
+      }
+    },
+    [snapshots, store]
+  )
+
+  const clearUnavailable = useCallback(
+    async () => setUnavailable(sessionRef.current?.unavailable ?? [], false),
+    [setUnavailable]
+  )
 
   const deleteSnapshot = useCallback(
     async (id: string) => {
@@ -236,6 +326,8 @@ export const DataProvider = ({ children, store: injected }: PropsDataProvider) =
       saveCurrent,
       loadSnapshot,
       loadSample,
+      setUnavailable,
+      clearUnavailable,
       deleteSnapshot,
       deleteAllSnapshots,
       clearSession
@@ -252,6 +344,8 @@ export const DataProvider = ({ children, store: injected }: PropsDataProvider) =
       saveCurrent,
       loadSnapshot,
       loadSample,
+      setUnavailable,
+      clearUnavailable,
       deleteSnapshot,
       deleteAllSnapshots,
       clearSession

@@ -939,6 +939,13 @@ a.ix-card:hover {
   }
 }
 
+.ix-tick {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--ix-h3);
+}
+
 .ix-user {
   display: inline-flex;
   align-items: center;
