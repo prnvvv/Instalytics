@@ -192,6 +192,59 @@ describe('import flow', () => {
     expect(JSON.stringify(saved.completeness)).not.toMatch(/fan\d|fol\d/)
   })
 
+  it('compares the export with the counts typed in from the Instagram app, locally', async () => {
+    const user = userEvent.setup()
+    const followers = Array.from({ length: 40 }, (_, i) => `f${i}`)
+    const following = Array.from({ length: 60 }, (_, i) => `g${i}`)
+
+    renderApp('/app/import')
+    await uploadFile(user, exportZip(followers, following))
+    await user.click(await screen.findByRole('button', { name: /analyse this export/i }))
+    await screen.findByRole('heading', { level: 1, name: /your network/i })
+
+    expect(screen.getByRole('heading', { name: 'Check against Instagram' })).toBeInTheDocument()
+    expect(screen.queryByText(/match/i, { selector: 'strong' })).toBeNull()
+
+    // A one-account difference is normal drift between a snapshot and a live count.
+    await user.type(screen.getByLabelText('Followers in the Instagram app'), '41')
+    expect(await screen.findByText('Followers match')).toBeInTheDocument()
+
+    // The export lists 60 accounts followed; Instagram shows 50.
+    await user.type(screen.getByLabelText('Following in the Instagram app'), '50')
+    expect(await screen.findByText('The export lists 10 more accounts than Instagram shows')).toBeInTheDocument()
+    expect(screen.getByText(/deactivated or deleted/)).toBeInTheDocument()
+    // No overlap between these lists: 60 not following back, minus the 10 surplus.
+    expect(screen.getByText(/closer to 50 than 60/)).toBeInTheDocument()
+
+    // Nothing typed is sent anywhere.
+    const calls = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls
+
+    expect(calls.every(([url]) => url === '/api/v1/health/ready')).toBe(true)
+  })
+
+  it('points at a missing part of the export when Instagram shows more accounts', async () => {
+    const user = userEvent.setup()
+
+    renderApp('/app/import')
+    await uploadFile(user, exportZip(['a', 'b', 'c'], ['x', 'y']))
+    await user.click(await screen.findByRole('button', { name: /analyse this export/i }))
+    await screen.findByRole('heading', { level: 1, name: /your network/i })
+    await user.type(screen.getByLabelText('Followers in the Instagram app'), '500')
+
+    expect(await screen.findByText('The export lists 497 fewer accounts than Instagram shows')).toBeInTheDocument()
+    expect(screen.getByText(/All time/)).toBeInTheDocument()
+  })
+
+  it('ignores input that is not a whole number and hides the panel for sample data', async () => {
+    const user = userEvent.setup()
+
+    renderApp('/app/import')
+    await user.click(await screen.findByRole('button', { name: /try with sample data/i }))
+    await screen.findByRole('heading', { level: 1, name: /your network/i })
+
+    expect(screen.queryByRole('heading', { name: 'Check against Instagram' })).toBeNull()
+  })
+
   it('shows no warning for a clean export', async () => {
     const user = userEvent.setup()
 
