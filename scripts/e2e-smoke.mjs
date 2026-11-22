@@ -211,6 +211,40 @@ try {
   check(`dashboard: ${n(exp.notFollowingBack)} not following back`, (await card('Not following back:')).includes(`${n(exp.notFollowingBack)} accounts`), await card('Not following back:'))
   check(`dashboard: ${n(exp.fans)} fans`, (await card('Fans:')).includes(`${n(exp.fans)} fans`), await card('Fans:'))
 
+  // Optional: type the counts Instagram's own app shows, to exercise "Check against Instagram".
+  const reportedFollowers = args['reported-followers'] ? Number(args['reported-followers']) : null
+  const reportedFollowing = args['reported-following'] ? Number(args['reported-following']) : null
+
+  if (reportedFollowers !== null || reportedFollowing !== null) {
+    const typeInto = (label, value) => evaluate(`(() => {
+      const label = [...document.querySelectorAll('label')].find(l => l.textContent.includes(${JSON.stringify(label)}))
+      const input = label && document.getElementById(label.htmlFor)
+      if (!input) return false
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(String(value))})
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      return true
+    })()`)
+    const verdict = (exported, reported) => {
+      const diff = exported - reported
+
+      if (Math.abs(diff) <= Math.max(2, Math.round(reported * 0.005))) return 'match'
+
+      return diff > 0 ? `${n(diff)} more account` : `${n(Math.abs(diff))} fewer account`
+    }
+
+    if (reportedFollowers !== null) await typeInto('Followers in the Instagram app', reportedFollowers)
+    if (reportedFollowing !== null) await typeInto('Following in the Instagram app', reportedFollowing)
+
+    await sleep(500)
+
+    const panel = await evaluate(`document.querySelector('section[aria-labelledby="reconcile-title"]')?.innerText ?? ''`)
+
+    if (reportedFollowers !== null) check(`reconcile: followers ${n(exp.followers)} vs Instagram ${n(reportedFollowers)} -> ${verdict(exp.followers, reportedFollowers)}`, verdict(exp.followers, reportedFollowers) === 'match' ? /Followers match/.test(panel) : panel.includes(verdict(exp.followers, reportedFollowers)), panel.slice(0, 200))
+    if (reportedFollowing !== null) check(`reconcile: following ${n(exp.following)} vs Instagram ${n(reportedFollowing)} -> ${verdict(exp.following, reportedFollowing)}`, verdict(exp.following, reportedFollowing) === 'match' ? /Following match/.test(panel) : panel.includes(verdict(exp.following, reportedFollowing)), panel.slice(0, 200))
+
+    console.log('\nWhat the app says in "Check against Instagram":\n' + panel.split('\n').map(line => '   | ' + line).join('\n') + '\n')
+  }
+
   const notice = /These results may not cover everyone|This export looks incomplete/.test(await text())
 
   if (exp.warning === 'yes') check('dashboard keeps the completeness warning visible', notice)

@@ -16,6 +16,17 @@ Vite proxy and otherwise through `VITE_API_URL`; see `docs/setup/local-developme
 usernames to a server. A test (`src/app/backend.test.tsx`) and the end-to-end script
 (`scripts/e2e-smoke.mjs`) both assert that the only network calls are body-less health checks.
 
+## Export versus Instagram's live counts
+
+An export is a snapshot of files; the counts on Instagram's profile are live and only include accounts that are
+active right now, so they rarely match exactly. The dashboard has an optional **Check against Instagram** panel
+(`features/dashboard/ReconcilePanel.tsx`, logic in `lib/analytics/reconcile.ts`): the user types the two counts
+the app shows and sees whether the export matches (a few accounts of drift is normal), lists more accounts than
+Instagram shows (accounts since deactivated or deleted can still appear in an export, and would all be among "not
+following back" or "fans"), or lists fewer (changes after exporting, a date-range limit, a missing file). The
+explanations are hedged on purpose: an export carries no per-account status, so nothing claims to know which
+accounts are inactive. What the user types is computed locally and never stored or sent.
+
 ## One set of rules on both sides
 
 `lib/instagram` and `lib/analytics` are a TypeScript port of the backend's parser, completeness diagnostics and
