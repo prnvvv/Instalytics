@@ -28,6 +28,8 @@ coverage/
 # Instagram exports and user data must never be committed
 *.zip
 backend/uploads/
+# Local-only copy of a real export used to validate the parser. Never commit it.
+/reference/
 **/instagram-*/
 **/followers_and_following/
 
