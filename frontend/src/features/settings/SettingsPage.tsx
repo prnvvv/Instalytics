@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 
 import { PageHead } from '@/app/common'
 import { useAppData } from '@/data/context'
-import { getBackendStatus, apiBaseUrl, type BackendStatus } from '@/lib/api/client'
+import { useBackendStatus } from '@/data/useBackendStatus'
+import { apiBaseUrl, apiMode, type BackendStatus } from '@/lib/api/client'
 import { accountsOfKind, type RelationshipKind } from '@/lib/analytics/relationships'
 import { accountsToCsv, downloadText, toCsv } from '@/lib/csv'
 import { formatBytes, formatCount, formatPercent, formatRatio } from '@/lib/format'
@@ -24,28 +25,19 @@ const BACKEND_TEXT: Record<BackendStatus['state'], string> = {
   offline: 'Not reachable. INYX still works without it.'
 }
 
+const CHECK_TEXT = { ok: 'ok', unavailable: 'unavailable', not_configured: 'not configured' } as const
+
+const MODE_TEXT = {
+  direct: () => `Requests go to ${apiBaseUrl()} (VITE_API_URL). That origin must be listed in the backend's CORS_ORIGINS.`,
+  proxy: () => 'Development: requests to /api are forwarded to the backend by the Vite dev server.',
+  none: () => 'No backend is configured. Set VITE_API_URL to show the status of the INYX API.'
+} as const
+
 const SettingsPage = () => {
   const { session, snapshots, storeAvailable, storageError, settings, updateSettings, deleteAllSnapshots, clearSession } = useAppData()
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [status, setStatus] = useState<BackendStatus | null>(null)
+  const { status, refresh: checkBackend } = useBackendStatus()
   const [message, setMessage] = useState<string | null>(null)
-
-  const checkBackend = useCallback(async () => {
-    setStatus(null)
-    setStatus(await getBackendStatus())
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-
-    getBackendStatus().then(result => {
-      if (!cancelled) setStatus(result)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   const handleDeleteAll = async () => {
     if (!confirmDelete) {
@@ -249,7 +241,20 @@ const SettingsPage = () => {
             <p className='ix-note' style={{ marginTop: 8 }} role='status'>
               {status === null ? 'Checking...' : BACKEND_TEXT[status.state]}
             </p>
-            <p className='ix-note'>{apiBaseUrl() ? `Configured at ${apiBaseUrl()}.` : 'Set VITE_API_URL to show the status of the INYX API.'}</p>
+            {status !== null && (status.state === 'online' || status.state === 'degraded') && (
+              <dl className='ix-kv' style={{ marginTop: 8 }}>
+                {Object.entries(status.readiness.checks).map(([name, value]) => (
+                  <div key={name}>
+                    <dt>{name}</dt>
+                    <dd>{CHECK_TEXT[value]}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            <p className='ix-note' style={{ marginTop: 8 }}>
+              {MODE_TEXT[apiMode()]()}
+            </p>
+            <p className='ix-note'>Only this health check is sent. Your export and your account lists never leave the browser.</p>
             <button type='button' className='ix-btn ix-btn-sm' style={{ marginTop: 10 }} onClick={checkBackend}>
               Check again
             </button>

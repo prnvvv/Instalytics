@@ -319,6 +319,23 @@
   box-shadow: 0 0 0 3px rgb(63 178 127 / 0.18);
 }
 
+.ix-dot-warn,
+.ix-dot-off {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+}
+
+.ix-dot-warn {
+  background-color: var(--ix-warn);
+  box-shadow: 0 0 0 3px rgb(245 160 122 / 0.2);
+}
+
+.ix-dot-off {
+  background-color: #b5b5b5;
+  box-shadow: 0 0 0 3px rgb(181 181 181 / 0.25);
+}
+
 /* ---------- Light panels ---------- */
 
 .ix-panel {
