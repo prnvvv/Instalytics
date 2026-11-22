@@ -30,7 +30,8 @@ src/
 ```
 
 See `docs/frontend/architecture.md`. Exports are read and analysed in the browser; nothing is uploaded.
-Copy `.env.example` to `.env.local` to point Settings at a backend (optional).
+In development the Vite server proxies `/api` to the backend on `:8000` (see `docs/setup/local-development.md`
+and `.env.example`); `scripts/dev.ps1` starts both servers in one command.
 
 The `@` alias points at `src/` (see `vite.config.ts` and `tsconfig.app.json`).
 
