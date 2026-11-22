@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react'
+﻿import { useMemo, useState, type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 import { PageHead } from '@/app/common'
@@ -9,6 +9,7 @@ import { compareSnapshots, type ComparisonKind } from '@/lib/analytics/compare'
 import { excludeUnavailable } from '@/lib/analytics/unavailable'
 import { formatCount, formatDateTime } from '@/lib/format'
 import type { Account } from '@/lib/instagram/types'
+import { KIND_COLOR } from '@/lib/palette'
 import { effectiveCounts, fromStored, type Snapshot } from '@/lib/storage/snapshots'
 
 import AccountBrowser from '../lists/AccountBrowser'
@@ -25,10 +26,10 @@ const CURRENT_ID = 'current'
 const SHOWN_SNAPSHOTS = 3
 
 const KINDS: { kind: ComparisonKind; title: string; subtitle: string; color: string; csv: string }[] = [
-  { kind: 'gainedFollowers', title: 'Gained followers', subtitle: 'In the newer export only', color: '#f6d08a', csv: 'gained-followers' },
-  { kind: 'lostFollowers', title: 'Lost followers', subtitle: 'In the older export only', color: '#f5a07a', csv: 'lost-followers' },
-  { kind: 'newFollowing', title: 'New follows', subtitle: 'You follow now, not before', color: '#8593ea', csv: 'new-following' },
-  { kind: 'unfollowed', title: 'Unfollowed', subtitle: 'You followed before, not now', color: '#e88bb3', csv: 'unfollowed' }
+  { kind: 'gainedFollowers', title: 'Gained followers', subtitle: 'In the newer export only', color: KIND_COLOR.mutuals, csv: 'gained-followers' },
+  { kind: 'lostFollowers', title: 'Lost followers', subtitle: 'In the older export only', color: KIND_COLOR['not-following-back'], csv: 'lost-followers' },
+  { kind: 'newFollowing', title: 'New follows', subtitle: 'You follow now, not before', color: KIND_COLOR.following, csv: 'new-following' },
+  { kind: 'unfollowed', title: 'Unfollowed', subtitle: 'You followed before, not now', color: KIND_COLOR.fans, csv: 'unfollowed' }
 ]
 
 const snapshotTitle = (s: Snapshot) => `${s.label || 'Snapshot'} · ${formatDateTime(s.analyzedAt)}`
