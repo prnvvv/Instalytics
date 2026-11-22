@@ -69,7 +69,7 @@ const NAV = {
   ],
 
   // The one action at the top right
-  action: { label: 'Get started', href: '#how-it-works' },
+  action: { label: 'Get started', href: '/app' },
 
   // How far the page scrolls before the nav frosts and the windows fold shut, px
   scrollThreshold: 12
