@@ -8,13 +8,13 @@ Nothing here logs or persists export content.
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 
-from app.modules.parser.discovery import (
-    classify,
-    is_candidate_path,
-    normalize_member_path,
-)
+from app.modules.archive.errors import ArchiveError
+from app.modules.archive.limits import ArchiveLimits
+from app.modules.archive.paths import normalize_member_path
+from app.modules.archive.safe_zip import ArchiveSource, SafeZip
+from app.modules.parser.discovery import classify, is_candidate_path
 from app.modules.parser.extract import UnexpectedStructureError, deduplicate, extract_accounts
 from app.modules.parser.models import (
     ConnectionKind,
@@ -46,7 +46,13 @@ def parse_export_files(
         path = normalize_member_path(raw_path)
         if not is_candidate_path(path):
             continue
-        content = files[raw_path]
+        try:
+            content = files[raw_path]
+        except ArchiveError as exc:
+            if exc.code != "entry_too_large":
+                raise
+            issues.append(_issue("file_too_large", path, "File exceeds the size limit."))
+            continue
 
         if len(content) > max_json_bytes:
             issues.append(_issue("file_too_large", path, "File exceeds the size limit."))
@@ -84,6 +90,37 @@ def parse_export_files(
         files=reports,
         issues=issues,
     )
+
+
+class _LazyArchiveFiles(Mapping[str, bytes]):
+    """Reads candidate members on demand so only one file is held in memory at a time."""
+
+    def __init__(self, archive: SafeZip, max_json_bytes: int) -> None:
+        self._archive = archive
+        self._max_json_bytes = max_json_bytes
+        self._paths = [m.path for m in archive.members if is_candidate_path(m.path)]
+
+    def __getitem__(self, path: str) -> bytes:
+        return self._archive.read(path, max_bytes=self._max_json_bytes)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._paths)
+
+    def __len__(self) -> int:
+        return len(self._paths)
+
+
+def parse_export_archive(source: ArchiveSource, limits: ArchiveLimits | None = None) -> ParseResult:
+    """Validate a ZIP with :class:`SafeZip` and parse the followers/following files inside it.
+
+    Raises :class:`ArchiveError` if the archive violates ``limits``. The archive is never
+    extracted to disk.
+    """
+    limits = limits or ArchiveLimits()
+    with SafeZip(source, limits) as archive:
+        return parse_export_files(
+            _LazyArchiveFiles(archive, limits.max_json_bytes), max_json_bytes=limits.max_json_bytes
+        )
 
 
 def _issue(code: str, path: str, message: str) -> ParseIssue:
