@@ -12,7 +12,7 @@ validation libraries.
 | App foundation (config, JSON logging, request IDs, error envelope, CORS, security headers, body-size limit) | Implemented |
 | `GET /api/v1/health/live`, `GET /api/v1/health/ready` | Implemented. Readiness pings Redis only when `REDIS_URL` is set |
 | `POST /api/v1/analytics/relationships` | Implemented, stateless (nothing stored or logged) |
-| `app.modules.parser` (followers/following JSON, username/URL normalization) | Implemented as a library, not exposed over HTTP |
+| `app.modules.parser` (followers/following JSON, username/URL normalization, per-file diagnostics and completeness checks) | Implemented as a library, not exposed over HTTP |
 | `app.modules.archive` (secure ZIP validation, bounded in-memory reads) | Implemented as a library, not exposed over HTTP |
 | Redis | Client + readiness check only (`app/core/redis.py`). No caching, queue or rate limiting yet |
 | Database, migrations, Celery, auth, rate limiting, upload endpoint | **Not implemented** (not approved/needed yet) |
@@ -32,7 +32,7 @@ backend/
     modules/
       health/          liveness/readiness
       archive/         SafeZip, limits, path safety
-      parser/          discovery, normalization, extraction, models
+      parser/          discovery, normalization, extraction, completeness, models
       analytics/       relationship analytics + router
   tests/               pytest suite (synthetic data only)
   reference/           archived legacy files, excluded from lint/Docker

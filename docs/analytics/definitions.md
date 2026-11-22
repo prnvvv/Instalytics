@@ -13,6 +13,13 @@ normalized (lowercase) usernames. Duplicates are removed before any calculation.
 | Follow-back rate | `|M| / |G| × 100` | Percentage of followed accounts that follow back |
 | Follower-to-following ratio | `|F| / |G|` | Not a percentage |
 
+## Only as good as the lists
+
+Every figure above is exact for the lists it is given. If the follower list in an export is partial (for
+example the export was limited to a date range), "following only" is overstated and mutuals are understated.
+The parser reports this through `diagnostics.status` and `possible_date_range_limit` (see
+`docs/parser/instagram-export-format.md`); surfaces that show these metrics should show the warning too.
+
 ## Edge cases
 
 - A rate or ratio with a zero denominator is `null` (undefined), never `0` or infinity. The UI
