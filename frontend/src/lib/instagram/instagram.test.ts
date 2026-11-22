@@ -59,6 +59,8 @@ describe('normalizeUsername', () => {
 
 const names = (accounts: { username: string }[]) => accounts.map(a => a.username)
 
+const codes = (result: { issues: { code: string }[] }) => result.issues.map(i => i.code)
+
 describe('parseExportFiles', () => {
   it('parses followers and following in the standard layout', () => {
     const result = parseExportFiles({
@@ -69,7 +71,7 @@ describe('parseExportFiles', () => {
     expect(names(result.followers)).toEqual(['alice', 'bob'])
     expect(names(result.following)).toEqual(['bob', 'carol'])
     expect(result.issues).toEqual([])
-    expect(result.recordsSeen).toEqual({ followers: 2, following: 2 })
+    expect([result.diagnostics.followers.recordsSeen, result.diagnostics.following.recordsSeen]).toEqual([2, 2])
   })
 
   it('takes fields only from the source', () => {
@@ -94,7 +96,7 @@ describe('parseExportFiles', () => {
     })
 
     expect(names(result.followers).sort()).toEqual(['alice', 'bob', 'carol', 'dave'])
-    expect(result.recordsSeen.followers).toBe(5)
+    expect(result.diagnostics.followers.recordsSeen).toBe(5)
   })
 
   it('treats case variants as one account and keeps the newest timestamp', () => {
@@ -159,26 +161,27 @@ describe('parseExportFiles', () => {
     const result = parseExportFiles({ 'followers_1.json': '{not json', 'followers_2.json': followersJson('alice') })
 
     expect(names(result.followers)).toEqual(['alice'])
-    expect(result.issues.map(i => i.code)).toEqual(['invalid_json'])
+    expect(codes(result)).toContain('invalid_json')
     expect(result.issues[0].message).not.toContain('not json')
+    expect(result.diagnostics.status).toBe('incomplete')
   })
 
   it('rejects invalid UTF-8 as invalid JSON', () => {
     const result = parseExportFiles({ 'followers_1.json': new Uint8Array([0xff, 0xfe, 0x00, 0x62]) })
 
-    expect(result.issues.map(i => i.code)).toEqual(['invalid_json'])
+    expect(codes(result)).toContain('invalid_json')
   })
 
   it('reports unexpected structures', () => {
-    expect(parseExportFiles({ 'following.json': '{"something_else": []}' }).issues.map(i => i.code)).toEqual(['unexpected_structure'])
-    expect(parseExportFiles({ 'followers_1.json': '"just a string"' }).issues.map(i => i.code)).toEqual(['unexpected_structure'])
+    expect(codes(parseExportFiles({ 'following.json': '{"something_else": []}' }))).toContain('unexpected_structure')
+    expect(codes(parseExportFiles({ 'followers_1.json': '"just a string"' }))).toContain('unexpected_structure')
   })
 
   it('skips oversized files with an issue', () => {
     const result = parseExportFiles({ 'followers_1.json': followersJson('alice') }, 10)
 
     expect(result.followers).toEqual([])
-    expect(result.issues.map(i => i.code)).toEqual(['file_too_large'])
+    expect(codes(result)).toContain('file_too_large')
   })
 
   it('counts invalid entries rather than fabricating accounts', () => {
@@ -200,7 +203,9 @@ describe('parseExportFiles', () => {
     const result = parseExportFiles({ 'followers_1.json': '[]', 'following.json': '{"relationships_following": []}' })
 
     expect(result.followers).toEqual([])
-    expect(result.issues).toEqual([])
+    // Empty lists are legitimate data: informational only, so the extraction still counts as complete.
+    expect(codes(result)).toEqual(['empty_list', 'empty_list'])
+    expect(result.diagnostics.appearsComplete).toBe(true)
     expect(result.files).toHaveLength(2)
   })
 

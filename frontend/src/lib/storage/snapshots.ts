@@ -6,10 +6,16 @@
  */
 
 import { buildProfileUrl } from '../instagram/normalize'
-import { PARSER_VERSION, type Account } from '../instagram/types'
+import { PARSER_VERSION, type Account, type CompletenessStatus, type IssueSeverity, type ParseIssueCode } from '../instagram/types'
 
 /** Compact stored form of an account: [username, followedAt or 0]. */
 export type StoredAccount = [string, number]
+
+/** Whether the export looked complete when it was analysed, kept so a restored snapshot keeps its warning. */
+export type StoredCompleteness = {
+  status: CompletenessStatus
+  issues: { code: ParseIssueCode; severity: IssueSeverity; message: string }[]
+}
 
 export type Snapshot = {
   id: string
@@ -19,6 +25,8 @@ export type Snapshot = {
   parserVersion: string
   source: { fileName: string; fileSize: number }
   counts: { followers: number; following: number }
+  /** Absent on snapshots saved before completeness checks existed. */
+  completeness?: StoredCompleteness
   followers: StoredAccount[]
   following: StoredAccount[]
 }
@@ -48,6 +56,7 @@ export const createSnapshot = (input: {
   fileName: string
   fileSize: number
   label?: string
+  completeness?: StoredCompleteness
 }): Snapshot => ({
   id: crypto.randomUUID(),
   analyzedAt: input.analyzedAt,
@@ -55,6 +64,7 @@ export const createSnapshot = (input: {
   parserVersion: PARSER_VERSION,
   source: { fileName: input.fileName, fileSize: input.fileSize },
   counts: { followers: input.followers.length, following: input.following.length },
+  ...(input.completeness ? { completeness: input.completeness } : {}),
   followers: toStored(input.followers),
   following: toStored(input.following)
 })

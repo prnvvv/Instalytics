@@ -1,4 +1,5 @@
-import { isHtmlConnectionPath, parseExportFiles } from './parse'
+import { isHtmlConnectionPath } from './discovery'
+import { parseExportFiles } from './parse'
 import type { ParsedExport } from './types'
 import { ArchiveError, DEFAULT_LIMITS, readExportArchive, type ArchiveErrorCode, type ArchiveLimits } from './zip'
 
@@ -91,16 +92,10 @@ export const importExportFile = async (
   onStage?.('parsing')
   await nextFrame()
 
-  const parsed = parseExportFiles(contents.files, limits.maxJsonBytes)
-
-  for (const path of contents.oversized) {
-    parsed.issues.push({ code: 'file_too_large', path, message: 'File exceeds the size limit.' })
-  }
-
-  // A skipped oversized file already explains why nothing was found.
-  if (contents.oversized.length > 0) {
-    parsed.issues = parsed.issues.filter(issue => issue.code !== 'no_connection_files')
-  }
+  const parsed = parseExportFiles(contents.files, {
+    maxJsonBytes: limits.maxJsonBytes,
+    oversized: contents.oversized
+  })
 
   // An archive with no JSON connection files but HTML ones is a recognisable, unsupported layout.
   if (parsed.files.length === 0 && contents.memberPaths.some(isHtmlConnectionPath)) {
@@ -108,6 +103,7 @@ export const importExportFile = async (
 
     const html = {
       code: 'html_export' as const,
+      severity: 'error' as const,
       message: 'This looks like an HTML export. Request your data again and choose the JSON format.'
     }
 

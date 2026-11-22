@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react'
 
 import type { RelationshipAnalytics } from '@/lib/analytics/relationships'
 import type { ImportResult } from '@/lib/instagram/importExport'
-import type { FileReport, ParseIssue } from '@/lib/instagram/types'
+import type { CompletenessStatus, ParseDiagnostics, ParseIssue } from '@/lib/instagram/types'
 import type { Snapshot } from '@/lib/storage/snapshots'
 
 export type SessionOrigin = 'import' | 'snapshot' | 'sample'
@@ -15,9 +15,11 @@ export type Session = {
   fileSize: number
   analyzedAt: string
   snapshotId: string | null
-  files: FileReport[]
+  /** Per-file and per-list diagnostics. Null for saved snapshots and sample data. */
+  diagnostics: ParseDiagnostics | null
+  /** Whether the extraction looked complete. Null when unknown (sample data, snapshots saved before this existed). */
+  completeness: CompletenessStatus | null
   issues: ParseIssue[]
-  recordsSeen: { followers: number; following: number }
 }
 
 export type Settings = {

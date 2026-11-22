@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 
 import { useAppData, type Session } from '@/data/context'
 import { formatDateTime } from '@/lib/format'
+import type { ParseIssue } from '@/lib/instagram/types'
 
 type PropsPageHead = {
   label: string
@@ -63,6 +64,50 @@ export const NoDataState = () => {
           Try with sample data
         </button>
       </EmptyState>
+    </div>
+  )
+}
+
+const ALERT_CLASS = { error: 'ix-alert ix-alert-error', warning: 'ix-alert', info: 'ix-alert ix-alert-info' } as const
+
+/** One issue from the parser, styled by severity. Issues never contain usernames or file contents. */
+export const IssueAlert = ({ issue, title }: { issue: ParseIssue; title: string }) => (
+  <div className={ALERT_CLASS[issue.severity]} role={issue.severity === 'error' ? 'alert' : undefined}>
+    <div>
+      <strong>{title}</strong>
+      {issue.message}
+      {issue.path ? <span className='ix-note'> ({issue.path.split('/').pop()})</span> : null}
+    </div>
+  </div>
+)
+
+/**
+ * Warns when the analysis on screen may not cover the whole network. The figures are exact for the files that
+ * were read, so this says what may be missing instead of leaving the numbers to look authoritative.
+ */
+export const CompletenessNotice = ({ session }: { session: Session }) => {
+  if (session.origin === 'sample' || session.completeness === null || session.completeness === 'complete') return null
+
+  const problems = session.issues.filter(issue => issue.severity !== 'info')
+
+  return (
+    <div className={session.completeness === 'incomplete' ? 'ix-alert ix-alert-error' : 'ix-alert'} role='status' style={{ marginBottom: 12 }}>
+      <div>
+        <strong>
+          {session.completeness === 'incomplete' ? 'This export looks incomplete' : 'These results may not cover everyone'}
+        </strong>
+        The figures are exact for the files that were read, but they may not be your whole network.
+        {problems.length > 0 && (
+          <ul style={{ marginTop: 6, listStyle: 'disc', paddingLeft: 18 }}>
+            {problems.map((issue, index) => (
+              <li key={`${issue.code}-${index}`}>{issue.message}</li>
+            ))}
+          </ul>
+        )}
+        <Link to='/app/import' style={{ textDecoration: 'underline', display: 'inline-block', marginTop: 6 }}>
+          Import a fresh export
+        </Link>
+      </div>
     </div>
   )
 }

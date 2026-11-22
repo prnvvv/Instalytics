@@ -1,12 +1,11 @@
 import { FileArchive, ShieldCheck } from 'lucide-react'
-import { useId, useMemo, useState, type DragEvent } from 'react'
+import { Fragment, useId, useMemo, useState, type DragEvent } from 'react'
 import { useNavigate } from 'react-router'
 
-import { PageHead } from '@/app/common'
+import { IssueAlert, PageHead } from '@/app/common'
 import DotText from '@/components/dots/DotText'
 import { useAppData } from '@/data/context'
-import { timestampCoverage } from '@/lib/analytics/activity'
-import { formatBytes, formatCount, formatPercent } from '@/lib/format'
+import { formatBytes, formatCount, formatDate } from '@/lib/format'
 import { importExportFile, ImportError, type ImportResult, type ImportStage } from '@/lib/instagram/importExport'
 import { findDuplicate } from '@/lib/storage/snapshots'
 
@@ -27,7 +26,15 @@ const ISSUE_TITLE: Record<string, string> = {
   unexpected_structure: 'A file has an unexpected layout',
   file_too_large: 'A file was too large to read',
   html_export: 'This is an HTML export',
-  no_connection_files: 'No followers or following files found'
+  no_connection_files: 'No followers or following files found',
+  missing_followers_file: 'No followers file',
+  missing_following_file: 'No following file',
+  missing_part: 'Part of the followers or following list is missing',
+  rejected_records: 'Some records could not be read',
+  possible_date_range_limit: 'This export may be limited to a date range',
+  empty_list: 'An empty list',
+  conflicting_usernames: 'Records with conflicting usernames',
+  duplicate_source_files: 'The same file appears more than once'
 }
 
 const Progress = ({ stage, fileName }: { stage: ImportStage; fileName: string }) => {
@@ -54,15 +61,16 @@ const Preview = ({ result, onReset }: { result: ImportResult; onReset: () => voi
   const [save, setSave] = useState(storeAvailable && settings.saveByDefault)
   const [label, setLabel] = useState('')
   const [busy, setBusy] = useState(false)
+  const [acknowledged, setAcknowledged] = useState(false)
   const labelId = useId()
 
   const { parsed } = result
+  const { diagnostics } = parsed
   const followers = parsed.followers.length
   const following = parsed.following.length
-  const duplicates = parsed.recordsSeen.followers + parsed.recordsSeen.following - followers - following
-  const invalid = parsed.files.reduce((sum, f) => sum + f.invalidEntries, 0)
-  const coverage = timestampCoverage([...parsed.followers, ...parsed.following])
   const ready = followers > 0 && following > 0
+  // An export that looks partial can still be analysed, but only once the user has said they understand.
+  const needsAck = diagnostics.status !== 'complete'
   const duplicateOf = useMemo(() => findDuplicate(snapshots, parsed.followers, parsed.following), [snapshots, parsed])
 
   const handleConfirm = async () => {
@@ -98,25 +106,8 @@ const Preview = ({ result, onReset }: { result: ImportResult; onReset: () => voi
         </article>
       </div>
 
-      {!ready && (
-        <div className='ix-alert ix-alert-error' role='alert'>
-          <div>
-            <strong>{followers === 0 && following === 0 ? 'Nothing to analyse' : 'This export is incomplete'}</strong>
-            {followers === 0 && following === 0
-              ? 'No accounts were found. Request your export again with "Followers and following" selected, in JSON format.'
-              : `Only the ${followers === 0 ? 'following' : 'followers'} list was found. Mutuals and not-following-back need both lists, so request "Followers and following" again.`}
-          </div>
-        </div>
-      )}
-
       {parsed.issues.map((issue, index) => (
-        <div key={`${issue.code}-${index}`} className='ix-alert'>
-          <div>
-            <strong>{ISSUE_TITLE[issue.code] ?? 'Notice'}</strong>
-            {issue.message}
-            {issue.path ? <span className='ix-note'> ({issue.path.split('/').pop()})</span> : null}
-          </div>
-        </div>
+        <IssueAlert key={`${issue.code}-${index}`} issue={issue} title={ISSUE_TITLE[issue.code] ?? 'Notice'} />
       ))}
 
       <div className='ix-panel'>
@@ -128,23 +119,58 @@ const Preview = ({ result, onReset }: { result: ImportResult; onReset: () => voi
               {result.fileName} · {formatBytes(result.fileSize)}
             </dd>
           </div>
-          <div>
-            <dt>Followers and following files read</dt>
-            <dd>{parsed.files.length}</dd>
-          </div>
-          <div>
-            <dt>Duplicate records merged</dt>
-            <dd>{formatCount(Math.max(0, duplicates))}</dd>
-          </div>
-          <div>
-            <dt>Entries skipped as invalid</dt>
-            <dd>{formatCount(invalid)}</dd>
-          </div>
-          <div>
-            <dt>Accounts with a follow date</dt>
-            <dd>{followers + following === 0 ? 'n/a' : formatPercent(coverage * 100)}</dd>
-          </div>
+          {diagnostics.exportDate && (
+            <div>
+              <dt>Export date</dt>
+              <dd>{formatDate(Date.parse(`${diagnostics.exportDate}T00:00:00Z`) / 1000)}</dd>
+            </div>
+          )}
+          {(['followers', 'following'] as const).map(kind => {
+            const t = diagnostics[kind]
+
+            return (
+              <Fragment key={kind}>
+                <div>
+                  <dt>{kind === 'followers' ? 'Followers' : 'Following'}: records read</dt>
+                  <dd>
+                    {formatCount(t.recordsSeen)} in {t.sourceFiles} {t.sourceFiles === 1 ? 'file' : 'files'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{kind === 'followers' ? 'Followers' : 'Following'}: duplicates merged, skipped</dt>
+                  <dd>
+                    {formatCount(t.duplicatesRemoved)}, {formatCount(t.rejectedRecords)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{kind === 'followers' ? 'Followers' : 'Following'}: dates in the export</dt>
+                  <dd>
+                    {t.earliest === null || t.latest === null
+                      ? 'none'
+                      : `${formatDate(t.earliest)} to ${formatDate(t.latest)}`}
+                  </dd>
+                </div>
+              </Fragment>
+            )
+          })}
         </dl>
+      </div>
+
+      <div className='ix-panel'>
+        <h2 className='ix-h2'>Files found</h2>
+        <ul style={{ marginTop: 8 }}>
+          {diagnostics.files.map(file => (
+            <li key={file.path} className='ix-snapshot ix-light' style={{ gridTemplateColumns: 'minmax(0, 1fr) auto' }}>
+              <div>
+                <p style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{file.path.split('/').pop()}</p>
+                <p className='ix-note'>{file.note}</p>
+              </div>
+              <span className='ix-pill-status' data-status={file.status}>
+                {file.status === 'ignored' ? 'ignored' : file.status === 'failed' ? 'failed' : file.role}
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div className='ix-panel'>
@@ -183,6 +209,18 @@ const Preview = ({ result, onReset }: { result: ImportResult; onReset: () => voi
             </div>
           )}
 
+          {needsAck && ready && (
+            <label className='ix-check'>
+              <input type='checkbox' checked={acknowledged} onChange={event => setAcknowledged(event.target.checked)} />
+              <span>
+                I understand these results may not include everyone
+                <span className='ix-note' style={{ display: 'block' }}>
+                  The warnings above say what may be missing. The figures stay exact for the files that were read.
+                </span>
+              </span>
+            </label>
+          )}
+
           {duplicateOf && (
             <div className='ix-alert ix-alert-ok'>
               <div>
@@ -195,7 +233,12 @@ const Preview = ({ result, onReset }: { result: ImportResult; onReset: () => voi
         </div>
 
         <div className='flex flex-wrap gap-2' style={{ marginTop: 18 }}>
-          <button type='button' className='ix-btn ix-btn-dark' disabled={!ready || busy} onClick={handleConfirm}>
+          <button
+            type='button'
+            className='ix-btn ix-btn-dark'
+            disabled={!ready || busy || (needsAck && !acknowledged)}
+            onClick={handleConfirm}
+          >
             Analyse this export
           </button>
           <button type='button' className='ix-btn' onClick={onReset} disabled={busy}>

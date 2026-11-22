@@ -40,9 +40,9 @@ const sessionFromSnapshot = (snapshot: Snapshot): Session => ({
   fileSize: snapshot.source.fileSize,
   analyzedAt: snapshot.analyzedAt,
   snapshotId: snapshot.id,
-  files: [],
-  issues: [],
-  recordsSeen: { followers: snapshot.counts.followers, following: snapshot.counts.following }
+  diagnostics: null,
+  completeness: snapshot.completeness?.status ?? null,
+  issues: snapshot.completeness?.issues ?? []
 })
 
 const byDate = (a: Snapshot, b: Snapshot) => (a.analyzedAt < b.analyzedAt ? -1 : a.analyzedAt > b.analyzedAt ? 1 : 0)
@@ -127,7 +127,15 @@ export const DataProvider = ({ children, store: injected }: PropsDataProvider) =
         analyzedAt: current.analyzedAt,
         fileName: current.fileName,
         fileSize: current.fileSize,
-        label
+        label,
+        completeness:
+          current.completeness === null
+            ? undefined
+            : {
+                status: current.completeness,
+                // Messages and codes only: issues never contain usernames or file contents.
+                issues: current.issues.map(({ code, severity, message }) => ({ code, severity, message }))
+              }
       })
 
       try {
@@ -156,9 +164,9 @@ export const DataProvider = ({ children, store: injected }: PropsDataProvider) =
         fileSize: result.fileSize,
         analyzedAt: result.analyzedAt,
         snapshotId: null,
-        files: result.parsed.files,
-        issues: result.parsed.issues,
-        recordsSeen: result.parsed.recordsSeen
+        diagnostics: result.parsed.diagnostics,
+        completeness: result.parsed.diagnostics.status,
+        issues: result.parsed.issues
       }
 
       setSession(next)
@@ -192,9 +200,9 @@ export const DataProvider = ({ children, store: injected }: PropsDataProvider) =
       fileSize: 0,
       analyzedAt: SAMPLE_ANALYZED_AT,
       snapshotId: null,
-      files: [],
-      issues: [],
-      recordsSeen: { followers: followers.length, following: following.length }
+      diagnostics: null,
+      completeness: null,
+      issues: []
     })
   }, [])
 

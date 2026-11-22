@@ -218,6 +218,7 @@ describe('importExportFile', () => {
     const big = followersJson(...Array.from({ length: 200 }, (_, i) => `user${i}`))
     const result = await importExportFile(zipFile({ 'followers_1.json': big }), undefined, limits({ maxJsonBytes: 100 }))
 
-    expect(result.parsed.issues.map(i => i.code)).toEqual(['file_too_large'])
+    expect(result.parsed.issues.map(i => i.code)).toContain('file_too_large')
+    expect(result.parsed.diagnostics.status).toBe('incomplete')
   })
 })
