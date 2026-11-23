@@ -1,0 +1,21 @@
+# Render Blueprint for the Instalytics API. The frontend is deployed separately on Vercel.
+# The API is stateless: no database, Redis, disk or worker is needed.
+services:
+  - type: web
+    name: instalytics-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/v1/health/live
+    autoDeploy: false
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: LOG_JSON
+        value: "true"
+      # The Vercel origin(s), comma-separated, e.g. https://inyx.vercel.app. Set in the Render dashboard.
+      - key: CORS_ORIGINS
+        sync: false
