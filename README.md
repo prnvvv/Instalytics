@@ -107,4 +107,4 @@ Vercel are in [`docs/deployment/render-vercel.md`](docs/deployment/render-vercel
 
 ## License
 
-No license file is included in this repository.
+Released under the [MIT License](LICENSE).
