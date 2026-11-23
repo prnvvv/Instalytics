@@ -123,3 +123,16 @@ def test_request_logs_contain_no_query_string(
     assert app_records
     assert all("private_person" not in str(r.__dict__) for r in app_records)
     assert app_records[0].__dict__["path"] == "/api/v1/health/live"
+
+
+def test_cors_origins_are_normalised() -> None:
+    settings = make_settings(cors_origins="https://app.example.com/, http://localhost:5173")
+    assert settings.cors_origins == ["https://app.example.com", "http://localhost:5173"]
+
+
+@pytest.mark.parametrize(
+    "origin", ["*", "app.example.com", "https://app.example.com/path", "ftp://x.io"]
+)
+def test_invalid_cors_origins_are_rejected(origin: str) -> None:
+    with pytest.raises(ValidationError):
+        make_settings(cors_origins=origin)

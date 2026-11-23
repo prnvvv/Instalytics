@@ -29,6 +29,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.redis = create_redis_client(settings)
         logger.info("startup", extra={"env": settings.app_env})
+        if settings.is_production and not settings.cors_origins:
+            logger.warning("cors_origins_not_configured")
         try:
             yield
         finally:

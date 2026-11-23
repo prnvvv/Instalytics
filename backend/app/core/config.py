@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -45,10 +46,19 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins")
     @classmethod
-    def _reject_wildcard(cls, value: list[str]) -> list[str]:
+    def _validate_origins(cls, value: list[str]) -> list[str]:
         if "*" in value:
             raise ValueError("Wildcard CORS origins are not allowed; list explicit origins.")
-        return value
+        origins: list[str] = []
+        for item in value:
+            # A trailing slash is the most common misconfiguration and would never match the
+            # browser's Origin header, so tolerate it.
+            origin = item.rstrip("/")
+            parts = urlsplit(origin)
+            if parts.scheme not in {"http", "https"} or not parts.netloc or parts.path:
+                raise ValueError("CORS origins must look like https://app.example.com (no path).")
+            origins.append(origin)
+        return origins
 
     @property
     def is_production(self) -> bool:
